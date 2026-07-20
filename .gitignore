@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data and outputs
+data/
+tests/data/
+weights/
+predictions/
+results/
+videos/
+out_geffs/
+submission.csv
+kernel_output/
+
+# IDE
+.vscode/
+.idea/
+
+# Local config / credentials
+.env
+kaggle.json
+/kaggle_csvs

@@ -1,0 +1,15 @@
+.git/
+.venv/
+data/
+tests/data/
+weights/
+predictions/
+results/
+videos/
+out_geffs/
+kernel_output/
+.vscode/
+.idea/
+.ipynb_checkpoints/
+.env
+/kaggle_csvs
