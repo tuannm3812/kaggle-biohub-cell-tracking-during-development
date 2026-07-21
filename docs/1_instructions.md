@@ -30,7 +30,7 @@ video). Builds on Loïc Royer's group's `Ultrack` work (Nature Methods, 2025).
 
 ## Evaluation metric
 
-Full detail in [`../metrics.md`](../metrics.md). Summary:
+Full detail in [`metrics.md`](metrics.md). Summary:
 
 - **Edge Jaccard**: `TP / (TP + FP + FN)` on predicted vs. ground-truth
   lineage edges. Nodes matched to ground truth by centroid distance (≤ 7 µm,

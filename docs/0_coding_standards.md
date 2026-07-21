@@ -13,7 +13,7 @@ already match the shared file, so the two don't drift silently.
 
 ## Baseline Provenance (project-specific)
 
-`src/`, `scripts/`, `tests/`, `assets/`, and `metrics.md` are
+`src/`, `scripts/`, `tests/`, `assets/`, and `docs/metrics.md` are
 vendored from the official competition baseline,
 [royerlab/kaggle-cell-tracking-competition](https://github.com/royerlab/kaggle-cell-tracking-competition)
 (BSD-3-Clause — see `NOTICE.md`). It already implements the competition's

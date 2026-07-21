@@ -31,7 +31,7 @@ Sample video `44b6_0113de3b`: 100 timepoints, only **52 annotated nodes /
 cells. This matches the competition's own framing (`docs/1_instructions.md`)
 and is the reason the metric doesn't penalize unmatched *predicted* nodes
 outside ground truth, only excess volume relative to `T_true` (Adjusted
-Edge Jaccard) — see `metrics.md`.
+Edge Jaccard) — see `docs/metrics.md`.
 
 ## Open question, not yet resolved
 

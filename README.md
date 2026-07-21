@@ -47,7 +47,8 @@ next-experiment roadmap.
   `02_baseline_modeling.ipynb`, plus `notebooks/kernels/<name>/` holding
   each notebook's Kaggle `kernel-metadata.json`.
 - [`docs/`](docs/) — `0` project standards, `1` competition instructions,
-  `2` EDA findings, `3` competitive-landscape strategy/roadmap.
+  `2` EDA findings, `3` competitive-landscape strategy/roadmap, plus the
+  vendored `metrics.md` (official scoring spec).
 - [`src/tracking_cellmot/`](src/tracking_cellmot/) — vendored, tested I/O +
   metrics + model library from the official baseline (107 tests).
   Not executed directly on Kaggle (kernels mount a public pretrained-model

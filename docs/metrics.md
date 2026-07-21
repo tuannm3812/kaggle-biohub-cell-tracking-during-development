@@ -32,7 +32,7 @@ The metric proceeds as follows:
 The edge Jaccard is then `TP / (TP + FP + FN)`.
 
 Because the ground truth is sparse, a correct prediction will inevitably include nodes and edges the ground truth doesn't cover. Predicted nodes that do not match a ground-truth node are not counted as false positives.
-![Edge Jaccard on the `simple` example](assets/figure.svg)
+![Edge Jaccard on the `simple` example](../assets/figure.svg)
 <!-- *Example showing how predicted edges are labelled TP, FP, and FN against a sparse ground truth to compute the edge Jaccard.* -->
 
 ### Adjusted edge Jaccard
@@ -120,9 +120,9 @@ ignored.
 
 The division Jaccard is `TP / (TP + FP + FN)`.
 
-![Division Jaccard on the `simple` example](assets/division.svg)
+![Division Jaccard on the `simple` example](../assets/division.svg)
 
-![Division Jaccard on the `simple` example](assets/late_division.svg)
+![Division Jaccard on the `simple` example](../assets/late_division.svg)
 *A predicted fork one timepoint after the ground-truth split still counts as a
 TP when it satisfies the local topology rules.*
 

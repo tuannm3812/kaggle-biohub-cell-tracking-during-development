@@ -1,6 +1,6 @@
 # Attribution
 
-`src/`, `scripts/`, `tests/`, `assets/`, `metrics.md`, and the
+`src/`, `scripts/`, `tests/`, `assets/`, `docs/metrics.md`, and the
 base of `pyproject.toml` are vendored from the official baseline for the
 [Biohub – Cell Tracking During Development](https://www.kaggle.com/competitions/biohub-cell-tracking-during-development)
 Kaggle competition:

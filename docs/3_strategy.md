@@ -70,10 +70,10 @@ validated.
    learns a `generous_threshold → estimated_count` calibration ratio on
    train, then applies a per-video detection budget (`topk` peaks/frame)
    on test to avoid over-predicting (Adjusted Edge Jaccard explicitly
-   penalizes `T_pred > T_true`, see `metrics.md`). We haven't read this
+   penalizes `T_pred > T_true`, see `docs/metrics.md`). We haven't read this
    field yet — do that before tuning `DET_THRESHOLD` further.
 6. **Division recovery is low priority.** `score = adjusted_edge_jaccard +
-   0.1 * division_jaccard` (`metrics.md`) — divisions are only 10% of the
+   0.1 * division_jaccard` (`docs/metrics.md`) — divisions are only 10% of the
    score. seshurajup's 0.857 run has `allow_divisions: False` entirely.
    Only invest here once edge/detection quality is solid, and keep it
    conservative when we do (gate on parent–daughter distance *and*
