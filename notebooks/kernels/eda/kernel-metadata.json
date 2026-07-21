@@ -1,6 +1,6 @@
 {
   "id": "tuannm3812/tracking-cellmot-eda",
-  "title": "tracking-cellmot - EDA",
+  "title": "EDA",
   "code_file": "01_eda.ipynb",
   "language": "python",
   "kernel_type": "notebook",
@@ -8,7 +8,7 @@
   "enable_gpu": false,
   "enable_tpu": false,
   "enable_internet": true,
-  "dataset_sources": ["tuannm3812/tracking-cellmot-src"],
+  "dataset_sources": ["thibautgoldsborough/cellmot-baseline-artifacts"],
   "competition_sources": ["biohub-cell-tracking-during-development"],
   "kernel_sources": []
 }

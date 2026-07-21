@@ -24,10 +24,7 @@ tests, so it's kept largely as-is rather than rewritten.
 ## Repository Scope
 
 Notebook-first Kaggle workflow, same shape as the sibling episode repos
-(e.g. `kaggle-s6e7-predicting-student-health-risk`), with one addition this
-project genuinely needs and the tabular episode repos don't: a private
-Kaggle Dataset carrying the vendored `src/`/`scripts/` package into the
-Kaggle kernel.
+(e.g. `kaggle-s6e7-predicting-student-health-risk`).
 
 - `notebooks/` — `01_eda.ipynb`, `02_baseline_modeling.ipynb`, plus
   `notebooks/kernels/<name>/` holding each notebook's Kaggle
@@ -43,9 +40,16 @@ Kaggle kernel.
   plus `push_kaggle_kernel.sh <eda|baseline>` (the only script we wrote
   ourselves; see the deviation below for why the vendored ones are here
   and not in `src/`).
-- `dataset-metadata.json` (root) + `.kaggleignore` — publish `src/`/
-  `scripts/`/`tests/` as the private Kaggle Dataset
-  `tuannm3812/tracking-cellmot-src`, which both kernels mount.
+- `dataset-metadata.json` (root) + `.kaggleignore` — **on standby, not
+  currently used.** Would publish `src/`/`scripts/`/`tests/` as a private
+  Kaggle Dataset for the kernels to mount. Not needed right now: both
+  kernels instead mount the public `thibautgoldsborough/cellmot-baseline-artifacts`
+  dataset, which already bundles a working `repo/` (see "Pushing Notebooks
+  To Kaggle" below) — no dataset publish/versioning step required for a
+  predict-only submission with the pretrained checkpoint. Revisit once we
+  train our *own* customized model (`RUN_MODE = "train"`,
+  `USE_PRETRAINED = False`): at that point our local code changes need a
+  way onto Kaggle again, and this is it.
 
 No local `data/`, `predictions/`, or `scratch/` yet, unlike the tabular
 episode repos — the dataset is ~87.6 GB (vs. their few-MB CSVs), so there's
@@ -127,10 +131,10 @@ Each notebook should include:
 
 - Purpose statement.
 - Configuration cell near the top, with an `IS_KAGGLE` check that resolves
-  paths for both Kaggle execution (mounted competition data +
-  `tracking-cellmot-src` code dataset) and local development, plus explicit
-  mode flags where behavior differs by run (`RUN_MODE = "train" |
-  "submission"` in `02_baseline_modeling.ipynb`).
+  paths for both Kaggle execution (mounted competition data + the
+  `cellmot-baseline-artifacts` code/weights dataset) and local development,
+  plus explicit mode flags where behavior differs by run (`RUN_MODE =
+  "train" | "submission"` in `02_baseline_modeling.ipynb`).
 - Deterministic seed.
 - Markdown insight cells after every important plot or metric.
 - Numbered sections with clear reader-facing headers.
@@ -190,13 +194,19 @@ copies the current notebook into the right kernel folder first, so the two
 never drift.
 
 **Project-specific extra step, not needed in the tabular episode repos:**
-both kernels declare `dataset_sources` in their `kernel-metadata.json` —
-our own `tuannm3812/tracking-cellmot-src` (the vendored `src/`/`scripts/`
-package isn't on PyPI) on both, plus the public
-`thibautgoldsborough/cellmot-baseline-artifacts` (pretrained weights) on
-`baseline_modeling` only. Publish/refresh our own dataset from the repo
-root *before* pushing a kernel that depends on code changes since the last
-publish:
+both kernels declare `dataset_sources: ["thibautgoldsborough/cellmot-baseline-artifacts"]`
+in their `kernel-metadata.json`, since the vendored `src/`/`scripts/`
+package isn't on PyPI. That public dataset bundles a full working `repo/`
+(source, not just weights) — `02_baseline_modeling.ipynb` copies it to a
+writable `/kaggle/working/repo`; `01_eda.ipynb` reads it directly (never
+writes predictions/weights, so the read-only mount is fine). Nothing to
+publish or version ourselves for this.
+
+This only holds while we're predicting with the public pretrained
+checkpoint (`USE_PRETRAINED = True`) rather than our own logic. Once we
+train a customized model, our own code needs to reach Kaggle too — publish
+it as a private dataset from the repo root and add
+`"tuannm3812/tracking-cellmot-src"` back to `dataset_sources`:
 
 ```bash
 uv run kaggle datasets create -p .              # first time

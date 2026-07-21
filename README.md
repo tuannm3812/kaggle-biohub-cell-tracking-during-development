@@ -23,10 +23,12 @@ run on Kaggle Kernels.
   (see [`NOTICE.md`](NOTICE.md) for attribution).
 - `scripts/` — vendored baseline train/predict/evaluate/conversion CLIs
   driven from the notebooks, plus `push_kaggle_kernel.sh <eda|baseline>`.
-- `dataset-metadata.json` (root) — publishes `src/`/`scripts/` as a private
-  Kaggle Dataset the kernels mount (dataset is ~87.6 GB, so it's never
-  downloaded locally — see `docs/0_coding_standards.md`'s "Pushing
-  Notebooks To Kaggle" section).
+- `dataset-metadata.json` (root) — on standby for publishing `src/`/
+  `scripts/` as a private Kaggle Dataset once we train a customized model;
+  not needed for the current predict-with-pretrained-weights path, which
+  mounts the public `cellmot-baseline-artifacts` dataset instead (dataset
+  is ~87.6 GB, so it's never downloaded locally — see
+  `docs/0_coding_standards.md`'s "Pushing Notebooks To Kaggle" section).
 
 ## Setup
 
