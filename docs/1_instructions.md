@@ -67,8 +67,9 @@ uv run python scripts/evaluate.py --pred-dir out_geffs --gt-dir "$CELLMOT_DATA_D
 ```
 
 Then upload `submission.csv` on the competition's Submit page. See
-`../kaggle/README.md` for running this on Kaggle Kernels (free GPU, data
-pre-mounted) rather than locally.
+`docs/0_coding_standards.md`'s "Pushing Notebooks To Kaggle" section for
+running this via `scripts/push_kaggle_kernel.sh baseline` on Kaggle Kernels
+(free GPU, data pre-mounted) rather than locally.
 
 ## Baseline method (vendored, see `docs/0_coding_standards.md`)
 

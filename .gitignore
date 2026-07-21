@@ -9,6 +9,11 @@ build/
 # Jupyter
 .ipynb_checkpoints/
 
+# Staged notebook copies for scripts/push_kaggle_kernel.sh (notebooks/*.ipynb
+# are the single source of truth; these are regenerated at push time so the
+# Kaggle CLI has a notebook file alongside each kernel's own metadata)
+notebooks/kernels/*/*.ipynb
+
 # Data and outputs
 data/
 tests/data/
@@ -19,6 +24,7 @@ videos/
 out_geffs/
 submission.csv
 kernel_output/
+scratch/
 
 # IDE
 .vscode/

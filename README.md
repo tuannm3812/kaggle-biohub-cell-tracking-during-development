@@ -12,14 +12,18 @@ No scored submission yet.
 
 ## Layout
 
-- `notebooks/` — the executable workflow (`1_eda.ipynb`, `2_baseline_modeling.ipynb`).
+- `notebooks/` — the executable workflow (`01_eda.ipynb`,
+  `02_baseline_modeling.ipynb`), plus `notebooks/kernels/<name>/` holding
+  each notebook's Kaggle `kernel-metadata.json`.
 - `docs/` — standards, competition instructions, EDA/modeling notes as they land.
 - `src/tracking_cellmot/` — vendored, tested I/O + metrics + model library
   (see [`NOTICE.md`](NOTICE.md) for attribution).
-- `scripts/` — vendored baseline train/predict/evaluate/conversion CLIs,
-  driven from the notebooks.
-- `kaggle/` — push-to-Kaggle-Kernels workflow (dataset is ~87.6 GB, not
-  stored locally — see [`kaggle/README.md`](kaggle/README.md)).
+- `scripts/` — vendored baseline train/predict/evaluate/conversion CLIs
+  driven from the notebooks, plus `push_kaggle_kernel.sh <eda|baseline>`.
+- `dataset-metadata.json` (root) — publishes `src/`/`scripts/` as a private
+  Kaggle Dataset the kernels mount (dataset is ~87.6 GB, so it's never
+  downloaded locally — see `docs/0_coding_standards.md`'s "Pushing
+  Notebooks To Kaggle" section).
 
 ## Setup
 
