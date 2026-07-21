@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://www.kaggle.com/competitions/biohub-cell-tracking-during-development"><img alt="Kaggle Competition" src="https://img.shields.io/badge/Kaggle-Biohub%20Cell%20Tracking-20BEFF?logo=kaggle&logoColor=white"></a>
-  <a href="docs/3_strategy.md"><img alt="Status" src="https://img.shields.io/badge/Status-In%20progress-blue"></a>
+  <a href="docs/3_strategy.md"><img alt="Public LB Score" src="https://img.shields.io/badge/Public%20LB-0.810-success"></a>
   <a href="pyproject.toml"><img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-BSD--3--Clause-lightgrey"></a>
 </p>
@@ -33,13 +33,18 @@ analysis and the validated finding.
 
 ## Current best result
 
-No leaderboard score yet. `notebooks/02_baseline_modeling.ipynb` produces a
-schema-valid `submission.csv` end-to-end on Kaggle GPU using the pretrained
-`unet_transformer` checkpoint (graph repair off — see "Approach" above);
-not yet uploaded to the competition (a separate, deliberate action — see
-the notebook's "Submitting to Kaggle" section). See
+**Public leaderboard: 0.810** (submitted 2026-07-21, submission ref
+54875176) — `notebooks/02_baseline_modeling.ipynb`'s `unet_transformer`
+pretrained checkpoint + ILP linking, graph repair off (see "Approach"
+above). This is a genuine Code Competition submission: the kernel runs
+with internet disabled and submits via the Kaggle API's
+`competition_submit_code`, not a file upload (see
+[`docs/1_instructions.md`](docs/1_instructions.md)). Sits between the
+classical public references' 0.73–0.857 and the learned+repair
+references' ~0.897 (`docs/3_strategy.md`) — expected for a working
+learned baseline without the repair layer yet. See
 [`docs/3_strategy.md`](docs/3_strategy.md) for the prioritized
-next-experiment roadmap.
+next-experiment roadmap toward closing that gap.
 
 ## Repository layout
 

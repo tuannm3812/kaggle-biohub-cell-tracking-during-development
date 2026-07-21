@@ -138,25 +138,31 @@ investing further in division-recovery post-processing).
 
 1. ~~Get a first valid `submission.csv` from the pretrained baseline~~ — done,
    `docs/2_eda_insights.md`/README.
-2. **Root-cause the graph-repair regression above** before retrying it:
+2. ~~Upload the current (repair-off) `submission.csv` to bank a real LB
+   number~~ — done 2026-07-21, **public score 0.810** (submission ref
+   54875176). Sits between the classical public references' 0.73–0.857 and
+   the learned+repair references' ~0.897 — expected for a working learned
+   baseline without the repair layer yet.
+3. **Root-cause the graph-repair regression above** before retrying it:
    toggle `PRUNE_SHORT_TRACKS` and `CLOSE_GAPS` independently via
    `VALIDATE_ON_TRAIN_FOLD` to isolate which one (or both) hurts, then
    retune rather than discard — try a looser `PRUNE_MIN_NODES` (2?) and a
    tighter `GAP_MAX_DIST_UM` (4–5 µm?) informed by whichever is at fault.
-3. Upload the current (repair-off) `submission.csv` to bank a real LB
-   number — still pending, a deliberate, quota-costing action.
+   This is the highest-leverage next step toward closing the gap to 0.897.
 4. Read `estimated_number_of_nodes` from geff metadata in `01_eda.ipynb`
-   (not yet done); compare against predicted node counts per video, then
-   sweep `DET_THRESHOLD` / ILP weights against that budget via
+   (confirmed present on 10/10 surveyed train videos, not yet checked on
+   `test/`); compare against predicted node counts per video, then sweep
+   `DET_THRESHOLD` / ILP weights against that budget via
    `VALIDATE_ON_TRAIN_FOLD`.
-5. Investigate the division_jaccard=0 finding above — check whether it's a
-   genuine detection gap or a config/matching issue — before adding more
-   division-recovery post-processing on top of a signal that may be zero
-   for an unrelated reason.
+5. Investigate the division_jaccard=0 finding above — `01_eda.ipynb`'s
+   wider 10-video survey found only 1 division across 1,000 combined
+   timepoints, so this looks like genuine rarity rather than an
+   under-detection issue, but worth confirming before adding
+   division-recovery post-processing on top of a signal that's this rare.
 6. Consider motion-aware relinking (comparing against ILP directly, since
    ILP is already a stronger baseline than the two-pass Hungarian these
    techniques replace elsewhere), D4 TTA, or training our own checkpoint
-   longer, as later-stage refinements once 2–5 are stable.
+   longer, as later-stage refinements once 3–5 are stable.
 
 ## Attribution
 

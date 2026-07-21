@@ -1,56 +1,104 @@
 # EDA Insights
 
-From the first trusted run of `notebooks/01_eda.ipynb` on Kaggle,
-2026-07-21 (kernel `tuannm3812/biohub-eda`, version 4, `COMPLETE`). Full
-rich output (stats table, plots) lives on the kernel page —
-kaggle.com/code/tuannm3812/biohub-eda — the CLI log only captures `print()`
-stdout, not DataFrame/plot rendering.
+From `notebooks/01_eda.ipynb`'s trusted runs on Kaggle, most recently
+2026-07-21 (kernel `tuannm3812/biohub-eda`, version 7, `COMPLETE`). Charts,
+tables, and the animated preview below are pulled directly from that run's
+saved output (`kaggle kernels output`) — not regenerated or estimated —
+and mirror what renders on the kernel page itself
+(kaggle.com/code/tuannm3812/biohub-eda).
 
 ## Dataset scale
 
-- **199 train videos** with ground truth, **4 test videos**. The test set
-  being this small (vs. hundreds of train videos) is worth keeping in mind:
-  every test video's score matters a lot, and there's no way to locally
-  validate against it (no test GT) — see `docs/3_strategy.md`'s validation
-  section.
-- Confirmed data format matches `docs/1_instructions.md`: OME-Zarr v3,
-  `(T, Z, Y, X)`, `uint16`, voxel scale `(1.625, 0.40625, 0.40625)` µm
-  (Z, Y, X) — i.e. Z is **4× coarser** than X/Y. Every public reference
-  notebook reviewed (see `docs/3_strategy.md`) treats this anisotropy
-  explicitly (isotropic resampling or physical-µm gating) rather than
-  operating in raw voxel space; our vendored baseline already gates
+- **199 train videos** with ground truth, **4 test videos**. Confirmed via
+  `01_eda.ipynb` section 2's `list_datasets` call against the real
+  competition mount (`/kaggle/input/competitions/.../test`, not the
+  artifacts dataset), so this is the actual held-out test set, not a
+  partial slice.
+- All **10 surveyed train videos share an identical shape and scale**:
+  `(T=100, Z=64, Y=256, X=256)`, `uint16`, voxel scale `(1.625, 0.4062,
+  0.4062)` µm (Z, Y, X) — i.e. Z is **4× coarser** than X/Y. No shape/scale
+  variation found across this sample, so a single global `--det-threshold`
+  (rather than a per-video one) is reasonable, at least for this slice of
+  the dataset. Every public reference notebook reviewed (`docs/3_strategy.md`)
+  treats this anisotropy explicitly; our vendored baseline already gates
   distances in µm internally (`src/tracking_cellmot/metrics.py`,
   `pool_kernel_um` in `predict_unet_transformer.py`), so this is handled,
   not a gap.
 
-## Ground truth is genuinely sparse
+## Ground truth is genuinely, and very unevenly, sparse
 
-Sample video `44b6_0113de3b`: 100 timepoints, only **52 annotated nodes /
-50 edges total** — roughly 0.5 nodes per timepoint, against a
-`(64, 256, 256)` volume that almost certainly contains far more visible
-cells. This matches the competition's own framing (`docs/1_instructions.md`)
-and is the reason the metric doesn't penalize unmatched *predicted* nodes
-outside ground truth, only excess volume relative to `T_true` (Adjusted
-Edge Jaccard) — see `docs/metrics.md`.
+| dataset | nodes/timepoint | annotated nodes | estimated true nodes | annotated fraction |
+|---|---:|---:|---:|---:|
+| 44b6_0b24845f | 0.51 | 51 | 32,795 | 0.16% |
+| 44b6_0113de3b | 0.52 | 52 | 25,755 | 0.20% |
+| 44b6_0c582fdc | 0.71 | 71 | 27,958 | 0.25% |
+| 44b6_18ced818 | 1.00 | 100 | 78,644 | 0.13% |
+| 44b6_144b256d | 1.21 | 121 | 65,376 | 0.19% |
+| 44b6_1574802b | 1.55 | 155 | 17,677 | 0.88% |
+| 44b6_0db75fae | 1.57 | 157 | 15,335 | 1.02% |
+| 44b6_24264f12 | 2.30 | 230 | 26,353 | 0.87% |
+| 44b6_1d530831 | 2.76 | 276 | 35,825 | 0.77% |
+| 44b6_12dfb391 | 7.88 | 788 | 58,672 | 1.34% |
 
-## Open question, not yet resolved
+Two findings, not one:
 
-Only 4 test videos were found under the Kaggle mount. Worth double-checking
-this is genuinely the full held-out test set (not a partial mount or a
-competition-lifecycle artifact) before over-indexing local strategy on a
-sample size this small — re-run `01_eda.ipynb`'s dataset-listing cell
-periodically and compare.
+1. **The ground truth annotates roughly 0.1%–1.3% of the estimated true
+   cell count** (`annotated_fraction`, from `estimated_number_of_nodes` —
+   present on **10/10** surveyed videos). This is a far stronger, *measured*
+   sparsity statement than "52 nodes on a volume that probably has more
+   cells" — the true cell count is 15,000–79,000 per video, and only
+   dozens-to-hundreds are annotated.
+2. **Annotation density varies ~15× across videos** (0.51 to 7.88 nodes
+   per timepoint) with no visible correlation to the true-count estimate
+   (the sparsest-annotated video, 44b6_18ced818, has the *highest*
+   estimated true count). The single video used for the section-5 deep
+   dive (`44b6_0113de3b`, 0.52 nodes/timepoint) sits at the **low end** of
+   this range — conclusions from it alone (e.g. on divisions, below)
+   shouldn't be over-generalized to the full 199-video train set.
+
+![Annotated nodes per timepoint and division events across 10 surveyed train videos](../assets/eda_stats_bars.png)
+
+## Divisions are rare, not just under-annotated in one sample
+
+Only **1 division event across all 10 videos' combined 1,000 timepoints**
+(in `44b6_12dfb391`, itself the highest-annotation-density video). This
+directly answers the open question `01_eda.ipynb` section 5 raised from a
+single video (0 divisions in `44b6_0113de3b`) — a wider sample still shows
+divisions are rare, not simply missed in one under-annotated clip. Consistent
+with `02_baseline_modeling.ipynb`'s validation finding that the current
+checkpoint gets 0 division_jaccard credit, and with seshurajup's 0.857
+public reference solution (`docs/3_strategy.md`) disabling division
+recovery entirely. Division recovery remains low-priority (10% metric
+weight) until edge/detection quality is solid — see `docs/3_strategy.md`'s
+roadmap.
+
+## Visual check: do annotations land on real cells?
+
+`01_eda.ipynb` section 5 flagged this as worth checking directly — a
+mismatched annotation would signal a scale/orientation bug worth catching
+before trusting anything downstream. The real rendered frame confirms
+detections do land on real nuclei, not background, and makes the sparsity
+finding above viscerally obvious: dozens of clearly visible nuclei in a
+single max-intensity-projection frame, only one small white circle marking
+the single annotated cell.
+
+![Frame 0 of 44b6_0113de3b, max-intensity projection with the one annotated cell center circled in white](../assets/eda_frame_viz.png)
+
+The animated preview (30 consecutive timepoints, same video) shows the same
+pattern holding across time — the annotated track moves plausibly with a
+real nucleus rather than jumping around, but the overwhelming majority of
+visible cells in every frame stay unannotated throughout:
+
+![Animated preview: annotated cell center tracked over 30 timepoints, 44b6_0113de3b](../assets/eda_track_preview.gif)
 
 ## What to do next
 
 - Rerun the multi-video stats table with `N_VIDEOS_FOR_STATS = None` (all
-  199, not just 10) now that Kaggle runtime is known to be fast, and pull
-  the real per-video breakdown into this doc — current numbers are from a
-  single sample video only.
-- Cross-reference `estimated_number_of_nodes` (a field in each train
-  video's `.geff` `zarr.json` metadata, `attributes.geff.extra.
-  estimated_number_of_nodes` — not yet read by our EDA notebook) against
-  our own detection counts once we have predictions on train — several
-  top public notebooks use this exact field to calibrate a per-video
-  detection budget and avoid the over-prediction penalty. See
-  `docs/3_strategy.md`.
+  199, not just 10) now that Kaggle runtime is known to be fast, to confirm
+  the ~15× density spread and shape/scale consistency found here hold
+  across the full train set, not just this sample of 10.
+- Confirm whether `estimated_number_of_nodes` is **also** present on the
+  4 real `test/` videos (not yet checked — they lack `.geff` ground truth
+  entirely, so this needs a separate read of their `zarr.json` metadata)
+  before wiring a `DET_THRESHOLD` calibration step into
+  `02_baseline_modeling.ipynb` around it — see `docs/3_strategy.md`.

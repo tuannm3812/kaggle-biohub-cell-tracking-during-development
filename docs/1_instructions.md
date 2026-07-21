@@ -61,18 +61,51 @@ only accepts Submissions from Notebooks.","status":"FAILED_PRECONDITION"}}
 
 So the organizers' baseline README is stale/inaccurate on this point — this
 is a **Code Competition**: submissions must come from a Kaggle Notebook run,
-not a bare CSV upload. There is no `kaggle` CLI/API command for this step —
-`kaggle kernels`/`kaggle competitions` expose no "submit this kernel"
-endpoint. It's a **manual, web-UI-only action**:
+not a bare CSV upload. Unlike file-upload submission, this step also
+requires the kernel to run with **internet disabled** — Code Competition
+scoring runs are offline by design — confirmed by a second rejection
+(`"Your Notebook cannot use internet access in this competition."`) once
+the submission-source check above was fixed. `02_baseline_modeling.ipynb`'s
+Setup cell installs every dependency from the `cellmot-baseline-artifacts`
+dataset's bundled `wheels/` via `pip install --no-index --find-links`
+instead of PyPI/git for this reason (see docs/0_coding_standards.md`'s
+"Kaggle Access Troubleshooting" for the numpy/polars pitfalls that surfaced
+along the way), and `kernel-metadata.json` sets `"enable_internet": false`.
 
-1. Push `notebooks/02_baseline_modeling.ipynb` with `RUN_MODE = "submission"`
-   via `scripts/push_kaggle_kernel.sh baseline` (already has
-   `competition_sources: ["biohub-cell-tracking-during-development"]` in its
-   `kernel-metadata.json`, required for this to be offered at all) and wait
-   for a `COMPLETE` status (`kaggle kernels status ...`).
-2. On `kaggle.com/code/tuannm3812/biohub-baseline-modeling`, open the
-   completed run and click **"Submit to Competition"** — this scores the
-   `submission.csv` that specific run produced.
+There's no raw `kaggle` CLI subcommand for the submission step itself, but
+it **is** scriptable via the `kaggle` Python package:
+
+```python
+import kaggle
+from kagglesdk.kernels.types.kernels_api_service import ApiGetKernelRequest
+
+api = kaggle.KaggleApi()
+api.authenticate()
+
+# 1. Push with RUN_MODE = "submission" and wait for COMPLETE:
+#    scripts/push_kaggle_kernel.sh baseline
+#    kaggle kernels status tuannm3812/biohub-baseline-modeling
+
+# 2. Get the current version number (not exposed by `kaggle kernels status`):
+with api.build_kaggle_client() as kc:
+    req = ApiGetKernelRequest()
+    req.user_name, req.kernel_slug = "tuannm3812", "biohub-baseline-modeling"
+    version = kc.kernels.kernels_api_client.get_kernel(req).metadata.current_version_number
+
+# 3. Submit that specific version's output:
+api.competition_submit_code(
+    file_name="submission.csv",
+    message="...",
+    competition="biohub-cell-tracking-during-development",
+    kernel="tuannm3812/biohub-baseline-modeling",
+    kernel_version=version,  # omitting this hit an unrelated 403 (kernelSessions.get denied)
+)
+```
+
+The kernel's `kernel-metadata.json` must declare `competition_sources`
+for step 3 to be accepted at all. The Kaggle web UI's "Submit to
+Competition" button on the kernel's page does the same thing manually, if
+preferred.
 
 **CSV schema** (verified 2026-07-21 against the real `sample_submission.csv`,
 downloaded via `kaggle competitions download -c biohub-cell-tracking-during-development -f sample_submission.csv`):
