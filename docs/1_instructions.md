@@ -51,25 +51,66 @@ Full detail in [`../metrics.md`](../metrics.md). Summary:
 **Exception to the master standard's §11 (notebook-based submission
 preferred).** This competition does not support Kaggle notebook rerun
 submission — organizers' own baseline states "Kaggle accepts a CSV upload
-only." Round trip:
+only."
+
+**CSV schema** (verified 2026-07-21 against the real `sample_submission.csv`,
+downloaded via `kaggle competitions download -c biohub-cell-tracking-during-development -f sample_submission.csv`):
+
+```
+id,dataset,row_type,node_id,t,z,y,x,source_id,target_id
+```
+
+One `node` row per detection (`node_id`, `t`, `z`, `y`, `x` populated,
+`source_id`/`target_id` = `-1`) and one `edge` row per link (`source_id`,
+`target_id` populated, everything else `-1`). `scripts/geffs_to_csv.py`
+produces exactly this — verified column-for-column against the sample file.
+
+**Round trip** (see `notebooks/02_baseline_modeling.ipynb`'s "submission"
+`RUN_MODE` for the working, Kaggle-ready version — the commands below are
+illustrative, not copy-paste-safe, since `predict_unet_transformer.py`
+needs a `--data-dir`/`--splits` pointing at `test/` with a synthetic
+one-fold splits file; it has no `dataset_splits.json` of its own):
 
 ```bash
-# 1. Inference -> one .geff per test dataset
-uv run python scripts/predict_unet_transformer.py --method baseline --split 0
+# 1. Inference -> one .geff per test dataset (needs --data-dir test/ and a
+#    synthetic splits file -- see the notebook, not shown here for brevity)
+uv run python scripts/predict_unet_transformer.py ...
 
 # 2. geffs -> CSV (the file you upload to Kaggle)
 uv run python scripts/geffs_to_csv.py \
-    --in-dir predictions/$USER/baseline/split_0 --csv submission.csv
+    --in-dir predictions/$USER/<method>/split_0 --csv submission.csv
 
-# 3. (sanity check) CSV -> geffs -> score against ground truth
+# 3. (sanity check on TRAIN data with real GT, not the actual test predictions --
+#    see notebook's VALIDATE_ON_TRAIN_FOLD) CSV -> geffs -> score
 uv run python scripts/csv_to_geffs.py --csv submission.csv --out-dir out_geffs
 uv run python scripts/evaluate.py --pred-dir out_geffs --gt-dir "$CELLMOT_DATA_DIR"
 ```
 
-Then upload `submission.csv` on the competition's Submit page. See
-`docs/0_coding_standards.md`'s "Pushing Notebooks To Kaggle" section for
-running this via `scripts/push_kaggle_kernel.sh baseline` on Kaggle Kernels
-(free GPU, data pre-mounted) rather than locally.
+Then upload `submission.csv` on the competition's Submit page, or:
+```bash
+uv run kaggle competitions submit -c biohub-cell-tracking-during-development -f submission.csv -m "..."
+```
+
+See `docs/0_coding_standards.md`'s "Pushing Notebooks To Kaggle" section for
+running the notebook via `scripts/push_kaggle_kernel.sh baseline` on Kaggle
+Kernels (free GPU, data pre-mounted) rather than locally.
+
+## Pretrained baseline weights (public)
+
+The baseline author published a trained checkpoint as a public Kaggle
+Dataset: `thibautgoldsborough/cellmot-baseline-artifacts`
+(`weights/unet_transformer/split_0/edge_predictor_best.pth`), alongside a
+public inference notebook,
+[`thibautgoldsborough/unet-baseline-inference-submission`](https://www.kaggle.com/code/thibautgoldsborough/unet-baseline-inference-submission)
+(pulled via `kaggle kernels pull` 2026-07-21 to confirm the exact mount
+path and usage — not fetchable by URL, see "Kaggle Access Troubleshooting"
+in `docs/0_coding_standards.md`). Its own notes: `--use-ilp` scored
+~0.73 → ~0.79 over the greedy linker; `--det-threshold 0.99` was the best
+of a sweep (GT is sparse so the detector is poorly calibrated). Not trained
+to convergence — a starting point, not a ceiling.
+`notebooks/02_baseline_modeling.ipynb` defaults to this checkpoint
+(`USE_PRETRAINED = True`) so a first submission doesn't require training
+anything ourselves.
 
 ## Baseline method (vendored, see `docs/0_coding_standards.md`)
 
@@ -84,9 +125,9 @@ End-to-end detection + linking, trained jointly:
 3. **Sparse supervision** — only ground-truth edges backpropagate;
    unannotated cells/background detections are ignored during training.
 
-The weights referenced by `scripts/predict_unet_transformer.py`'s defaults
-were **not trained to convergence** (per the baseline README) — real gains
-are available just from training longer.
+See "Pretrained baseline weights" below for the public checkpoint used by
+default in `notebooks/02_baseline_modeling.ipynb` — not trained to
+convergence, real gains are available just from training longer.
 
 ## Python API quick reference
 

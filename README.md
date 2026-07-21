@@ -8,7 +8,10 @@ metric details: [`docs/1_instructions.md`](docs/1_instructions.md).
 
 ## Current best result
 
-No scored submission yet.
+No scored submission yet. `notebooks/02_baseline_modeling.ipynb`
+(`RUN_MODE = "submission"`, `USE_PRETRAINED = True`) is ready to produce
+one from the baseline author's public pretrained checkpoint — pending a
+run on Kaggle Kernels.
 
 ## Layout
 

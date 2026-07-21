@@ -190,10 +190,12 @@ copies the current notebook into the right kernel folder first, so the two
 never drift.
 
 **Project-specific extra step, not needed in the tabular episode repos:**
-both kernels declare `dataset_sources: ["tuannm3812/tracking-cellmot-src"]`
-in their `kernel-metadata.json`, since the vendored `src/`/`scripts/`
-package isn't on PyPI. Publish/refresh that dataset from the repo root
-*before* pushing a kernel that depends on code changes since the last
+both kernels declare `dataset_sources` in their `kernel-metadata.json` —
+our own `tuannm3812/tracking-cellmot-src` (the vendored `src/`/`scripts/`
+package isn't on PyPI) on both, plus the public
+`thibautgoldsborough/cellmot-baseline-artifacts` (pretrained weights) on
+`baseline_modeling` only. Publish/refresh our own dataset from the repo
+root *before* pushing a kernel that depends on code changes since the last
 publish:
 
 ```bash
@@ -222,3 +224,38 @@ reward). Competition detail in `docs/1_instructions.md` was gathered via
 the Kaggle CLI's structured output, not by fetching the competition page
 directly. If exact official wording is ever needed, ask the user to paste
 it rather than attempting another fetch.
+
+**Small competition files (`sample_submission.csv`, etc.) *are* downloadable
+without pulling the full dataset.** `kaggle competitions download -c <slug>
+-f <filename> -p <dir>` fetches a single file. Used this to verify the real
+submission CSV schema (`docs/1_instructions.md`) without touching the
+87.6 GB bulk data.
+
+**`kaggle kernels pull <owner>/<slug> -p <dir> -m` downloads a public
+kernel's source + `kernel-metadata.json` without running it.** Used this to
+find the baseline author's pretrained-weights dataset: their public
+inference notebook's `kernel-metadata.json` listed
+`thibautgoldsborough/cellmot-baseline-artifacts` under `dataset_sources`,
+which isn't visible any other way (not linked from the competition's
+Overview, which isn't fetchable anyway — see above). Worth doing for any
+competition with public reference notebooks before assuming you need to
+train from scratch.
+
+**`predict_unet_transformer.py` requires a `dataset_splits.json` in
+`--data-dir` (or an explicit `--splits`) — it does not auto-generate one
+like `train_unet_transformer.py` does.** The real `test/` directory ships
+no such file (fold-splitting is a train-only concept). Both
+`02_baseline_modeling.ipynb`'s submission and train-fold-validation cells
+build a synthetic one-fold splits file listing every video in the target
+directory before calling predict, matching the approach in the baseline
+author's own public inference notebook.
+
+**Kaggle Dataset mount paths differ for own-account vs. other-account
+datasets.** The baseline author's own inference notebook mounts a
+dataset *they* own at the simple `/kaggle/input/<slug>` path, but
+mounts a *different* dataset owned by someone else at a longer
+`/kaggle/input/datasets/<owner>/<slug>/<slug>` path (observed directly in
+their notebook source via `kaggle kernels pull`, not documented anywhere).
+Both notebooks' `_find_mount()` helper checks both path shapes and falls
+back to scanning `/kaggle/input/**` for a marker file/dir, rather than
+hardcoding one assumed path.

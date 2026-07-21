@@ -8,7 +8,10 @@
   "enable_gpu": true,
   "enable_tpu": false,
   "enable_internet": true,
-  "dataset_sources": ["tuannm3812/tracking-cellmot-src"],
+  "dataset_sources": [
+    "tuannm3812/tracking-cellmot-src",
+    "thibautgoldsborough/cellmot-baseline-artifacts"
+  ],
   "competition_sources": ["biohub-cell-tracking-during-development"],
   "kernel_sources": []
 }
