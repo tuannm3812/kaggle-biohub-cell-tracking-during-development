@@ -1,6 +1,6 @@
 {
-  "id": "tuannm3812/tracking-cellmot-eda",
-  "title": "EDA",
+  "id": "tuannm3812/biohub-eda",
+  "title": "Biohub EDA",
   "code_file": "01_eda.ipynb",
   "language": "python",
   "kernel_type": "notebook",

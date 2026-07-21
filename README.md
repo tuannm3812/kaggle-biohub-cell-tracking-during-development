@@ -8,10 +8,12 @@ metric details: [`docs/1_instructions.md`](docs/1_instructions.md).
 
 ## Current best result
 
-No scored submission yet. `notebooks/02_baseline_modeling.ipynb`
-(`RUN_MODE = "submission"`, `USE_PRETRAINED = True`) is ready to produce
-one from the baseline author's public pretrained checkpoint — pending a
-run on Kaggle Kernels.
+No leaderboard score yet. `notebooks/02_baseline_modeling.ipynb`
+(`RUN_MODE = "submission"`, `USE_PRETRAINED = True`, pretrained
+`unet_transformer` checkpoint) ran successfully on Kaggle GPU 2026-07-21
+and produced a schema-valid `submission.csv` (304,792 rows, all 4 test
+videos) — not yet uploaded to the competition (a separate, deliberate
+action; see the notebook's "Submitting to Kaggle" section).
 
 ## Layout
 

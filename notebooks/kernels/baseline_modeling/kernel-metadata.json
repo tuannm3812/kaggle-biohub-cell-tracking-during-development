@@ -1,6 +1,6 @@
 {
-  "id": "tuannm3812/tracking-cellmot-baseline-modeling",
-  "title": "Baseline Modeling",
+  "id": "tuannm3812/biohub-baseline-modeling",
+  "title": "Biohub Baseline Modeling",
   "code_file": "02_baseline_modeling.ipynb",
   "language": "python",
   "kernel_type": "notebook",
@@ -10,5 +10,6 @@
   "enable_internet": true,
   "dataset_sources": ["thibautgoldsborough/cellmot-baseline-artifacts"],
   "competition_sources": ["biohub-cell-tracking-during-development"],
-  "kernel_sources": []
+  "kernel_sources": [],
+  "machine_shape": "NvidiaTeslaT4"
 }

@@ -269,3 +269,51 @@ their notebook source via `kaggle kernels pull`, not documented anywhere).
 Both notebooks' `_find_mount()` helper checks both path shapes and falls
 back to scanning `/kaggle/input/**` for a marker file/dir, rather than
 hardcoding one assumed path.
+
+**`kaggle kernels push` requires a title of at least 5 characters, and a
+brand-new kernel is created under the *title-derived* slug, not the `id`
+field's slug, if they disagree.** `"title": "EDA"` failed outright ("Title
+must be at least five characters"); with a longer title that still didn't
+match the `id`'s slug, the push succeeded with a warning but created the
+kernel at the title-derived URL (`biohub-eda`, not the `tracking-cellmot-eda`
+originally in `id`). Fix: keep `id`'s slug and `title` in agreement from the
+start, and after any first push, `kaggle kernels list -m --search <name>`
+to confirm the actual created slug before assuming `id` is authoritative.
+
+**An unpinned `pip install` inside a Kaggle kernel can silently break
+numpy/scipy/torch, even without naming them.** `zarr>=3.0.10` and
+`tracksdata` pulled in a numpy upgrade pip considered "needed"; the
+resulting numpy was internally inconsistent with the base image's
+precompiled scipy (`ImportError` deep in `scipy.spatial`/`numpy._core`,
+different symptom depending on import order) and, once torch's dependency
+chain got involved, produced `CUDA error: no kernel image is available for
+execution on the device` (an incompatible torch build silently replacing
+the base image's GPU-driver-matched one) — both confirmed by reproducing
+end-to-end on this competition's Kaggle image, fixed by pinning
+`numpy`/`scipy`/`torch` to `importlib.metadata.version(...)`'s
+already-installed value before any other `pip install` runs (see both
+notebooks' Setup cells). Generalizes: on Kaggle, prefer pinning any package
+already present in the base image (numpy, scipy, torch, pandas, ...) to its
+current version rather than leaving it unpinned in a `pip install` line,
+even when you don't think you're touching it.
+
+**GPU kernels need an explicit `machine_shape` in `kernel-metadata.json`,
+or Kaggle may assign hardware the base image's preinstalled torch build
+doesn't support.** Pinning torch's *version* alone did not fix the CUDA
+error above — Kaggle's default GPU allocation without a declared shape
+produced a device the pinned torch had no compiled kernels for. Fix:
+`"machine_shape": "NvidiaTeslaT4"` (matching the baseline author's own
+working `kernel-metadata.json`, found via `kaggle kernels pull`) resolved
+it immediately. Not documented in the public `kaggle kernels push --help`;
+only discoverable by pulling a known-working kernel's metadata.
+
+**A public dataset's bundled `repo/` may only include what its own
+publisher's notebook needs — don't assume it's a complete mirror of the
+upstream project.** `thibautgoldsborough/cellmot-baseline-artifacts`'s
+`repo/` has `train_unet_transformer.py`/`predict_unet_transformer.py`/
+`dataspec.py`/`src/` (everything their inference notebook imports) but not
+`geffs_to_csv.py`/`csv_to_geffs.py`/`evaluate.py` (their notebook inlines
+the CSV-flattening logic instead of calling a script) — confirmed by a
+`FileNotFoundError` on a real run. Fixed by inlining the same flatten-to-CSV
+logic directly in `02_baseline_modeling.ipynb`'s submission cell rather than
+shelling out to a script that isn't guaranteed present.
