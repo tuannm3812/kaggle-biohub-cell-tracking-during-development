@@ -13,13 +13,17 @@ already match the shared file, so the two don't drift silently.
 
 ## Baseline Provenance (project-specific)
 
-`src/`, `scripts/`, `tests/`, `visualize/`, `assets/`, and `metrics.md` are
+`src/`, `scripts/`, `tests/`, `assets/`, and `metrics.md` are
 vendored from the official competition baseline,
 [royerlab/kaggle-cell-tracking-competition](https://github.com/royerlab/kaggle-cell-tracking-competition)
 (BSD-3-Clause — see `NOTICE.md`). It already implements the competition's
 data I/O (OME-Zarr + GEFF via `tracksdata`), the exact scoring metric, and a
 trained-from-scratch 3D U-Net + transformer baseline with 100+ passing unit
-tests, so it's kept largely as-is rather than rewritten.
+tests, so it's kept largely as-is rather than rewritten. The vendored
+`visualize/` (napari GUI viewer) was dropped 2026-07-21 — never used in this
+Kaggle-only workflow; recover it from
+[royerlab/kaggle-cell-tracking-competition](https://github.com/royerlab/kaggle-cell-tracking-competition)
+if local interactive inspection is ever needed.
 
 ## Repository Scope
 
@@ -30,26 +34,22 @@ Notebook-first Kaggle workflow, same shape as the sibling episode repos
   `notebooks/kernels/<name>/` holding each notebook's Kaggle
   `kernel-metadata.json` (see "Pushing Notebooks To Kaggle" below).
 - `docs/` — durable findings and decisions.
-- `assets/` — vendored baseline demo assets (not README images here, unlike
-  the tabular repos — no header banner yet).
+- `assets/` — vendored baseline demo assets, including the README's header
+  animation.
 - `src/tracking_cellmot/` — vendored, tested I/O + metrics + model library.
   Reused across `scripts/` and both notebooks, and covered by `tests/`, so
   it earns the shared baseline's `src/` carve-out on its own merits, not
-  just because it was vendored that way.
+  just because it was vendored that way. Not executed directly on Kaggle
+  (kernels mount `thibautgoldsborough/cellmot-baseline-artifacts` instead —
+  see "Pushing Notebooks To Kaggle" below); kept locally as a tested
+  reference and for training a customized checkpoint later
+  (`RUN_MODE = "train"`, `USE_PRETRAINED = False`), at which point we'd
+  need our own code back on Kaggle (recreate `dataset-metadata.json` +
+  `.kaggleignore` — dropped 2026-07-21 since unused until then, see below).
 - `scripts/` — vendored baseline train/predict/evaluate/conversion CLIs,
   plus `push_kaggle_kernel.sh <eda|baseline>` (the only script we wrote
   ourselves; see the deviation below for why the vendored ones are here
   and not in `src/`).
-- `dataset-metadata.json` (root) + `.kaggleignore` — **on standby, not
-  currently used.** Would publish `src/`/`scripts/`/`tests/` as a private
-  Kaggle Dataset for the kernels to mount. Not needed right now: both
-  kernels instead mount the public `thibautgoldsborough/cellmot-baseline-artifacts`
-  dataset, which already bundles a working `repo/` (see "Pushing Notebooks
-  To Kaggle" below) — no dataset publish/versioning step required for a
-  predict-only submission with the pretrained checkpoint. Revisit once we
-  train our *own* customized model (`RUN_MODE = "train"`,
-  `USE_PRETRAINED = False`): at that point our local code changes need a
-  way onto Kaggle again, and this is it.
 
 No local `data/`, `predictions/`, or `scratch/` yet, unlike the tabular
 episode repos — the dataset is ~87.6 GB (vs. their few-MB CSVs), so there's
@@ -168,8 +168,8 @@ sibling episode repos.
   notebooks' config cells).
 - Kaggle CLI auth: `~/.kaggle/kaggle.json` locally (already set up), picked
   up automatically by `uv run kaggle ...` — never paste its contents
-  anywhere. `.gitignore`/`.kaggleignore` both exclude it explicitly as a
-  second layer of defense.
+  anywhere. `.gitignore` excludes it explicitly as a second layer of
+  defense.
 
 ## Git Hygiene
 
@@ -214,14 +214,17 @@ it as a private dataset from the repo root and add
 `"tuannm3812/tracking-cellmot-src"` back to `dataset_sources`:
 
 ```bash
+uv run kaggle datasets init -p .                # first time -- recreates dataset-metadata.json
 uv run kaggle datasets create -p .              # first time
 uv run kaggle datasets version -p . -m "..."    # after any code change
 ```
 
-`dataset-metadata.json` (root) owns this; `.kaggleignore` (root) keeps
-`.git`, `.venv`, local data/weights/predictions, etc. out of the upload.
-Kernels are `is_private: true` here (unlike the tabular episode repos'
-public kernels) since this is a live, prize-money competition.
+`dataset-metadata.json` and `.kaggleignore` (which excludes `.git`, `.venv`,
+local data/weights/predictions, etc. from the upload) were dropped
+2026-07-21 as unused dead weight — recreate them at that point rather than
+keeping them on standby indefinitely. Kernels are `is_private: true` here
+(unlike the tabular episode repos' public kernels) since this is a live,
+prize-money competition.
 
 ## Kaggle Access Troubleshooting
 

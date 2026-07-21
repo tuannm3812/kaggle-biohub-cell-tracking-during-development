@@ -51,12 +51,14 @@ validated.
    introduce non-consecutive edges. seshurajup's `recover_gap2` defaults:
    `max_total_um=10.2, max_step_um=4.4, max_added_frac=0.02` (caps total
    recovered distance, per-step distance, and the fraction of edges gap2
-   is allowed to add).
+   is allowed to add). **Tried 2026-07-21, currently regresses our
+   score** — see "Validated finding" below before retrying.
 3. **Short-track pruning.** Drop tracks below a minimum length (4–7 frames
    across the notebooks reviewed) after linking/gap-closing — isolated or
    near-isolated short fragments are usually false positives that hurt
    the Adjusted Edge Jaccard's node-count penalty more than they help
-   recall.
+   recall. **Tried 2026-07-21, currently regresses our score** — see
+   "Validated finding" below before retrying.
 4. **Trajectory smoothing.** Line-fit (local linear regression over a
    small window, e.g. `win=2`) or velocity-blended smoothing of node
    coordinates post-linking — cheap, doesn't touch topology, tightens
@@ -100,23 +102,61 @@ validated.
   not assumed (`docs/1_instructions.md`) — several public notebooks note
   this exact risk ("a mismatch... causes a silent score of 0").
 
+## Validated finding: graph repair currently regresses the score
+
+Implemented short-track pruning + bounded (1- and 2-frame) gap closing in
+`02_baseline_modeling.ipynb`, unit-tested against synthetic data and a real
+`tracksdata` graph object, then validated on **19 real held-out train
+videos** via `VALIDATE_ON_TRAIN_FOLD` (2026-07-21) before ever spending a
+submission on it:
+
+| | edge_jaccard | division_jaccard | score |
+|---|---:|---:|---:|
+| raw (no repair) | 0.8031 | 0.0000 | 0.8031 |
+| repaired | 0.7897 | 0.0000 | 0.7897 |
+| delta | -0.0133 | +0.0000 | -0.0133 |
+
+**It made things worse.** Both flags (`PRUNE_SHORT_TRACKS`, `CLOSE_GAPS`)
+are off by default as a result — this is the validation harness doing its
+job, not a wasted effort. Leading hypothesis: our detector already runs at
+a strict `DET_THRESHOLD` (0.99), so short predicted segments are less
+likely to be pure noise here than in the classical (DoG-detection)
+pipelines these techniques are drawn from — pruning them away may be
+removing true positives, not false ones. Gap closing may also be
+introducing wrong bridges (a plain nearest-neighbor Hungarian match, not
+the velocity-aware version the reference notebooks use) more often than it
+recovers real missed detections. Not yet root-caused to which technique (or
+both) is responsible — see roadmap step 2 below.
+
+Also notable: **division_jaccard was 0 in both conditions** — this
+checkpoint isn't getting any division credit at all right now, independent
+of repair (`ILP_DIVISION_WEIGHT=1.0` is set, so this is either a genuinely
+hard signal to recover or a configuration issue worth a closer look before
+investing further in division-recovery post-processing).
+
 ## Roadmap
 
 1. ~~Get a first valid `submission.csv` from the pretrained baseline~~ — done,
-   `docs/2_eda_insights.md`/README. Upload it to bank a real LB number
-   (still pending — a deliberate, quota-costing action).
-2. Read `estimated_number_of_nodes` from geff metadata in `01_eda.ipynb`;
-   compare against our predicted node counts per video.
-3. Add a graph-repair post-processing stage to `02_baseline_modeling.ipynb`
-   after the ILP prediction step: motion-relink pass, gap + gap2 recovery,
-   short-track pruning, line-fit smoothing — each gated behind its own
-   config flag (matching our existing `USE_ILP`-style pattern), validated
-   locally via `VALIDATE_ON_TRAIN_FOLD` before spending a submission.
-4. Sweep `DET_THRESHOLD` / ILP weights with the count-calibration budget
-   from step 2, again via `VALIDATE_ON_TRAIN_FOLD`.
-5. Add conservative division recovery once 1–4 are stable.
-6. Consider D4 TTA, or training our own checkpoint longer, as
-   later-stage refinements once the repair layer is banked and scored.
+   `docs/2_eda_insights.md`/README.
+2. **Root-cause the graph-repair regression above** before retrying it:
+   toggle `PRUNE_SHORT_TRACKS` and `CLOSE_GAPS` independently via
+   `VALIDATE_ON_TRAIN_FOLD` to isolate which one (or both) hurts, then
+   retune rather than discard — try a looser `PRUNE_MIN_NODES` (2?) and a
+   tighter `GAP_MAX_DIST_UM` (4–5 µm?) informed by whichever is at fault.
+3. Upload the current (repair-off) `submission.csv` to bank a real LB
+   number — still pending, a deliberate, quota-costing action.
+4. Read `estimated_number_of_nodes` from geff metadata in `01_eda.ipynb`
+   (not yet done); compare against predicted node counts per video, then
+   sweep `DET_THRESHOLD` / ILP weights against that budget via
+   `VALIDATE_ON_TRAIN_FOLD`.
+5. Investigate the division_jaccard=0 finding above — check whether it's a
+   genuine detection gap or a config/matching issue — before adding more
+   division-recovery post-processing on top of a signal that may be zero
+   for an unrelated reason.
+6. Consider motion-aware relinking (comparing against ILP directly, since
+   ILP is already a stronger baseline than the two-pass Hungarian these
+   techniques replace elsewhere), D4 TTA, or training our own checkpoint
+   longer, as later-stage refinements once 2–5 are stable.
 
 ## Attribution
 

@@ -25,10 +25,6 @@ dev = [
     "pytest>=8.4.2",
     "ruff>=0.8",
 ]
-viz = [
-    "napari>=0.5",
-    "pyqt5",
-]
 notebook = [
     "jupyterlab>=4.0",
     "ipykernel>=6.29",
