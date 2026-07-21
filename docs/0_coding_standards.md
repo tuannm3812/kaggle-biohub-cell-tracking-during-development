@@ -105,9 +105,14 @@ not every parameter tweak. Current docs:
 - `0_coding_standards.md` — this file.
 - `1_instructions.md` — competition task, data format, metric, submission
   method, deadline.
-
-Reserve `2_eda_insights.md` for after `01_eda.ipynb` has an actual trusted
-run to report on; don't create it pre-emptively with placeholder content.
+- `2_eda_insights.md` — real findings from `01_eda.ipynb`'s first trusted
+  Kaggle run (dataset scale, sparsity, open questions).
+- `3_strategy.md` — competitive-landscape synthesis from public reference
+  notebooks + our own results, and the prioritized next-experiment
+  roadmap. Update this, not a new doc, as the roadmap steps land —
+  reserve a new number only for a genuinely new finding/decision, not
+  every experiment result (log those as roadmap-step updates here first;
+  promote to a new doc only if it grows unwieldy).
 
 Notebook naming: `01_eda.ipynb`, `02_baseline_modeling.ipynb`, matching the
 sibling episode repos' zero-padded convention. Prefer a new config flag

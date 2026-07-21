@@ -13,14 +13,17 @@ No leaderboard score yet. `notebooks/02_baseline_modeling.ipynb`
 `unet_transformer` checkpoint) ran successfully on Kaggle GPU 2026-07-21
 and produced a schema-valid `submission.csv` (304,792 rows, all 4 test
 videos) — not yet uploaded to the competition (a separate, deliberate
-action; see the notebook's "Submitting to Kaggle" section).
+action; see the notebook's "Submitting to Kaggle" section). See
+[`docs/3_strategy.md`](docs/3_strategy.md) for the prioritized next-experiment
+roadmap, synthesized from public reference notebooks scoring LB 0.73–0.897.
 
 ## Layout
 
 - `notebooks/` — the executable workflow (`01_eda.ipynb`,
   `02_baseline_modeling.ipynb`), plus `notebooks/kernels/<name>/` holding
   each notebook's Kaggle `kernel-metadata.json`.
-- `docs/` — standards, competition instructions, EDA/modeling notes as they land.
+- `docs/` — standards (`0`), competition instructions (`1`), EDA findings
+  (`2`), and the competitive-landscape strategy/roadmap (`3`).
 - `src/tracking_cellmot/` — vendored, tested I/O + metrics + model library
   (see [`NOTICE.md`](NOTICE.md) for attribution).
 - `scripts/` — vendored baseline train/predict/evaluate/conversion CLIs
