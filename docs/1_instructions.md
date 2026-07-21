@@ -46,12 +46,33 @@ Full detail in [`metrics.md`](metrics.md). Summary:
   ground truth are **not** penalized. Division predictions can land one
   timepoint early/late and still count.
 
-## Submission method — file upload only
+## Submission method — Code Competition (notebook rerun), not file upload
 
-**Exception to the master standard's §11 (notebook-based submission
-preferred).** This competition does not support Kaggle notebook rerun
-submission — organizers' own baseline states "Kaggle accepts a CSV upload
-only."
+**Matches the master standard's §11 (notebook-based submission preferred) —
+not a deviation.** This was initially assumed to be file-upload only
+(the vendored baseline's own README says "Kaggle accepts a CSV upload
+only"), but a real `kaggle competitions submit -f submission.csv` attempt
+(2026-07-21) was rejected by the API with `400 Bad Request`:
+
+```
+{"error":{"code":400,"message":"Submission not allowed:  This competition
+only accepts Submissions from Notebooks.","status":"FAILED_PRECONDITION"}}
+```
+
+So the organizers' baseline README is stale/inaccurate on this point — this
+is a **Code Competition**: submissions must come from a Kaggle Notebook run,
+not a bare CSV upload. There is no `kaggle` CLI/API command for this step —
+`kaggle kernels`/`kaggle competitions` expose no "submit this kernel"
+endpoint. It's a **manual, web-UI-only action**:
+
+1. Push `notebooks/02_baseline_modeling.ipynb` with `RUN_MODE = "submission"`
+   via `scripts/push_kaggle_kernel.sh baseline` (already has
+   `competition_sources: ["biohub-cell-tracking-during-development"]` in its
+   `kernel-metadata.json`, required for this to be offered at all) and wait
+   for a `COMPLETE` status (`kaggle kernels status ...`).
+2. On `kaggle.com/code/tuannm3812/biohub-baseline-modeling`, open the
+   completed run and click **"Submit to Competition"** — this scores the
+   `submission.csv` that specific run produced.
 
 **CSV schema** (verified 2026-07-21 against the real `sample_submission.csv`,
 downloaded via `kaggle competitions download -c biohub-cell-tracking-during-development -f sample_submission.csv`):
@@ -63,37 +84,10 @@ id,dataset,row_type,node_id,t,z,y,x,source_id,target_id
 One `node` row per detection (`node_id`, `t`, `z`, `y`, `x` populated,
 `source_id`/`target_id` = `-1`) and one `edge` row per link (`source_id`,
 `target_id` populated, everything else `-1`). `scripts/geffs_to_csv.py`
-produces exactly this — verified column-for-column against the sample file.
-
-**Round trip** (see `notebooks/02_baseline_modeling.ipynb`'s "submission"
-`RUN_MODE` for the working, Kaggle-ready version — the commands below are
-illustrative, not copy-paste-safe, since `predict_unet_transformer.py`
-needs a `--data-dir`/`--splits` pointing at `test/` with a synthetic
-one-fold splits file; it has no `dataset_splits.json` of its own):
-
-```bash
-# 1. Inference -> one .geff per test dataset (needs --data-dir test/ and a
-#    synthetic splits file -- see the notebook, not shown here for brevity)
-uv run python scripts/predict_unet_transformer.py ...
-
-# 2. geffs -> CSV (the file you upload to Kaggle)
-uv run python scripts/geffs_to_csv.py \
-    --in-dir predictions/$USER/<method>/split_0 --csv submission.csv
-
-# 3. (sanity check on TRAIN data with real GT, not the actual test predictions --
-#    see notebook's VALIDATE_ON_TRAIN_FOLD) CSV -> geffs -> score
-uv run python scripts/csv_to_geffs.py --csv submission.csv --out-dir out_geffs
-uv run python scripts/evaluate.py --pred-dir out_geffs --gt-dir "$CELLMOT_DATA_DIR"
-```
-
-Then upload `submission.csv` on the competition's Submit page, or:
-```bash
-uv run kaggle competitions submit -c biohub-cell-tracking-during-development -f submission.csv -m "..."
-```
-
-See `docs/0_coding_standards.md`'s "Pushing Notebooks To Kaggle" section for
-running the notebook via `scripts/push_kaggle_kernel.sh baseline` on Kaggle
-Kernels (free GPU, data pre-mounted) rather than locally.
+produces exactly this — verified column-for-column against the sample file
+(and re-verified: the CLI-upload attempt above reached Kaggle's schema
+validation and was rejected on the *submission-source* check, not a schema
+error).
 
 ## Pretrained baseline weights (public)
 
