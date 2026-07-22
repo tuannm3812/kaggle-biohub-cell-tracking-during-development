@@ -103,8 +103,8 @@ become useful.
 
 ## Document Naming
 
-Reserve a new number for a promoted, project-owned finding or decision —
-not every parameter tweak. Current docs:
+Reserve a new number for a promoted, project-owned finding, decision, or
+durable tracking artifact — not every parameter tweak. Current docs:
 
 - `0_coding_standards.md` — this file.
 - `1_instructions.md` — competition task, data format, metric, submission
@@ -112,11 +112,22 @@ not every parameter tweak. Current docs:
 - `2_eda_insights.md` — real findings from `01_eda.ipynb`'s first trusted
   Kaggle run (dataset scale, sparsity, open questions).
 - `3_strategy.md` — competitive-landscape synthesis from public reference
-  notebooks + our own results, and the prioritized next-experiment
-  roadmap. Update this, not a new doc, as the roadmap steps land —
-  reserve a new number only for a genuinely new finding/decision, not
-  every experiment result (log those as roadmap-step updates here first;
-  promote to a new doc only if it grows unwieldy).
+  notebooks, the prioritized next-experiment roadmap, and short pointers to
+  the detailed logs below — decisions and reasoning live here, not raw
+  numbers. Update this, not a new doc, as the roadmap steps land.
+- `4_experiments.md` — every local `VALIDATE_ON_TRAIN_FOLD` run, submitted
+  or not, with config/score/conclusion. Originally logged inline in
+  `3_strategy.md`; split out once that doc's "Validated finding" section
+  grew to dwarf the actual strategy content — append a row per experiment
+  here instead of growing `3_strategy.md` further.
+- `5_submissions.md` — every real Kaggle submission (the subset of
+  experiments above that got scored on the actual leaderboard) — the
+  ground-truth progress record. Append a row per submission.
+- `metrics.md` — vendored official scoring spec (see `NOTICE.md`).
+
+`4_experiments.md` and `5_submissions.md` are append-only logs, not
+narrative docs — keep entries terse (one table row + a short conclusion),
+and put reasoning/what-to-try-next in `3_strategy.md` instead.
 
 Notebook naming: `01_eda.ipynb`, `02_baseline_modeling.ipynb`, matching the
 sibling episode repos' zero-padded convention. Prefer a new config flag

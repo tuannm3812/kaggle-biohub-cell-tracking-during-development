@@ -28,20 +28,19 @@ pruning, bounded gap recovery via interpolated intermediate nodes) —
 every top-scoring public solution reviewed converges on that shape. A
 first version of the repair stage regressed the score (edge Jaccard
 -0.0133) due to a structural bug; fixed and re-validated, it's now a
-genuine +0.007 leaderboard gain. See
-[`docs/3_strategy.md`](docs/3_strategy.md) for the full competitive-landscape
-analysis and both findings.
+genuine +0.007 leaderboard gain
+([`docs/4_experiments.md`](docs/4_experiments.md) for the full story). See
+[`docs/3_strategy.md`](docs/3_strategy.md) for the competitive-landscape
+analysis behind this approach.
 
 ## Current best result
 
-**Public leaderboard: 0.817** (submitted 2026-07-22, submission ref
-54892941) — `notebooks/02_baseline_modeling.ipynb`'s `unet_transformer`
-pretrained checkpoint + ILP linking + graph repair (short-track pruning
-and gap closing, both validated to genuinely help once a multi-frame-edge
-bug was fixed — see "Approach" above). Up from an initial 0.810
-(repair off, submission ref 54875176). This is a genuine Code Competition
-submission: the kernel runs with internet disabled and submits via the
-Kaggle API's `competition_submit_code`, not a file upload (see
+**Public leaderboard: 0.817**, up from an initial 0.810 — full submission
+history in [`docs/5_submissions.md`](docs/5_submissions.md), full
+experiment-by-experiment numbers behind it in
+[`docs/4_experiments.md`](docs/4_experiments.md). This is a genuine Code
+Competition submission: the kernel runs with internet disabled and submits
+via the Kaggle API's `competition_submit_code`, not a file upload (see
 [`docs/1_instructions.md`](docs/1_instructions.md)). Sits close to the
 learned+repair public references' ~0.897 (`docs/3_strategy.md`). See
 [`docs/3_strategy.md`](docs/3_strategy.md) for the prioritized
@@ -53,8 +52,9 @@ next-experiment roadmap toward closing that remaining gap.
   `02_baseline_modeling.ipynb`, plus `notebooks/kernels/<name>/` holding
   each notebook's Kaggle `kernel-metadata.json`.
 - [`docs/`](docs/) — `0` project standards, `1` competition instructions,
-  `2` EDA findings, `3` competitive-landscape strategy/roadmap, plus the
-  vendored `metrics.md` (official scoring spec).
+  `2` EDA findings, `3` strategy/roadmap, `4` experiment log,
+  `5` submission log, plus the vendored `metrics.md` (official scoring
+  spec).
 - [`src/tracking_cellmot/`](src/tracking_cellmot/) — vendored, tested I/O +
   metrics + model library from the official baseline (107 tests).
   Not executed directly on Kaggle (kernels mount a public pretrained-model

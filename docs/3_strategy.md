@@ -116,54 +116,17 @@ validated.
 
 ## Validated finding: graph repair regressed, root-caused, fixed, now a real gain
 
-Implemented short-track pruning + bounded (1- and 2-frame) gap closing in
-`02_baseline_modeling.ipynb`, unit-tested against synthetic data and a real
-`tracksdata` graph object, then validated on **19 real held-out train
-videos** via `VALIDATE_ON_TRAIN_FOLD` (2026-07-21) before ever spending a
-submission on it:
+Short-track pruning + gap closing initially **regressed** the score
+(edge_jaccard 0.8031 → 0.7897) — root-caused to a structural bug (gap
+bridges spanned multiple frames, which no ground-truth edge can ever
+match), fixed by inserting interpolated intermediate nodes instead, then
+re-validated: both techniques genuinely help in isolation, and combined
+give **+0.0065 edge_jaccard** locally, confirmed by a real **+0.007**
+leaderboard gain (0.810 → 0.817) once submitted. Both flags are on by
+default now. Full experiment-by-experiment numbers: `docs/4_experiments.md`
+(local validation) and `docs/5_submissions.md` (real submissions).
 
-| | edge_jaccard | division_jaccard | score |
-|---|---:|---:|---:|
-| raw (no repair) | 0.8031 | 0.0000 | 0.8031 |
-| repaired (buggy) | 0.7897 | 0.0000 | 0.7897 |
-| delta | -0.0133 | +0.0000 | -0.0133 |
-
-**Root-caused (2026-07-21, re-reading seshurajup's actual source via
-`kaggle kernels pull` rather than just its summary above):** the
-gap-closing implementation bridged a dangling track-end directly to a
-dangling track-start with **one edge spanning multiple frames** — e.g. `t`
-linked straight to `t+2`. Ground-truth edges only ever connect consecutive
-timepoints (`docs/metrics.md`), so a multi-frame edge is structurally
-incapable of ever matching one — every bridge added was pure noise by
-construction, independent of match quality. seshurajup's own `recover_gap2`
-avoids this by inserting interpolated intermediate nodes at each skipped
-timepoint, connected by ordinary single-frame edges, plus a hard cap
-(`max_added_frac=0.02`) on how many bridges get added — a detail summarized
-too loosely above on first pass; the *shape* of the technique was captured,
-but not this structural requirement.
-
-Fixed to match, then re-validated in isolation:
-
-| | edge_jaccard | delta |
-|---|---:|---:|
-| raw (no repair) | 0.8031 | — |
-| `CLOSE_GAPS` alone (fixed) | 0.8050 | +0.0020 |
-| `PRUNE_SHORT_TRACKS` alone | 0.8055 | +0.0024 |
-| both together | 0.8096 | **+0.0065** |
-
-Both techniques genuinely help — the original -0.0133 regression was
-entirely a symptom of the gap-closing bug, not a real problem with pruning
-(the "detector is too strict for pruning" hypothesis below was never
-actually tested in isolation before this). The combined effect is more
-than additive, likely because pruning after gap-closing cleans up bridges
-that didn't connect into a longer valid track. Both flags are on by
-default now. Submitted (kernel version 17, submission ref 54892941):
-**public score 0.817**, up from 0.810 — a +0.007 real LB gain that closely
-matches the +0.0065 local prediction, confirming `VALIDATE_ON_TRAIN_FOLD`
-as a reliable predictor of real gains, not just a directionally-correct
-proxy.
-
-Also notable: **division_jaccard was 0 in every condition above** — this
+Also notable: **division_jaccard was 0 in every condition tested** — this
 checkpoint isn't getting any division credit at all right now, independent
 of repair (`ILP_DIVISION_WEIGHT=1.0` is set, so this is either a genuinely
 hard signal to recover or a configuration issue worth a closer look before
@@ -174,29 +137,26 @@ investing further in division-recovery post-processing).
 1. ~~Get a first valid `submission.csv` from the pretrained baseline~~ — done,
    `docs/2_eda_insights.md`/README.
 2. ~~Upload the current (repair-off) `submission.csv` to bank a real LB
-   number~~ — done 2026-07-21, **public score 0.810** (submission ref
-   54875176). Sits between the classical public references' 0.73–0.857 and
-   the learned+repair references' ~0.897 — expected for a working learned
+   number~~ — done, `docs/5_submissions.md` #1, **public score 0.810**.
+   Sits between the classical public references' 0.73–0.857 and the
+   learned+repair references' ~0.897 — expected for a working learned
    baseline without the repair layer yet.
-3. ~~Root-cause and fix the graph-repair regression~~ — done 2026-07-21: a
-   structural bug (multi-frame-skip edges, see "Validated finding" above),
-   not a real problem with either technique. Fixed and re-validated
-   (+0.0065 edge_jaccard combined); submitted with repair on (submission
-   ref 54892941). **Public score 0.817**, up from 0.810 — the real +0.007
-   LB gain closely matches the +0.0065 predicted locally, confirming
-   `VALIDATE_ON_TRAIN_FOLD` as a reliable predictor, not just directionally
-   correct.
+3. ~~Root-cause and fix the graph-repair regression~~ — done, a structural
+   bug, not a real problem with either technique (`docs/4_experiments.md`
+   #1–#4). Fixed, re-validated (+0.0065 edge_jaccard combined), and
+   submitted with repair on: `docs/5_submissions.md` #2, **public score
+   0.817**, confirming `VALIDATE_ON_TRAIN_FOLD` as a reliable predictor of
+   real gains, not just directionally correct.
 4. **Sweep `DET_THRESHOLD` and the four `ILP_*_WEIGHT` values locally via
    `VALIDATE_ON_TRAIN_FOLD` — zero new code, cheapest next experiment.**
    The current values are the baseline author's own reported best from
    *their* sweep, on their own setup and without our (now-fixed) repair
    stage — not necessarily optimal for ours. Local validation is confirmed
    to track the public LB within ~0.007, so there's no reason not to search
-   our own optimum for free. Concretely: grid or random search
-   `DET_THRESHOLD` around 0.99 (e.g. 0.90–0.995) and each `ILP_*_WEIGHT`
-   independently, keeping whichever combination raises the 19-video
-   `edge_jaccard` above the current repair-on baseline (0.8096), then
-   confirm with one submission.
+   our own optimum for free. In progress: `docs/4_experiments.md`'s
+   `DET_THRESHOLD` sweep table, keeping whichever combination raises the
+   19-video `edge_jaccard` above the current repair-on baseline (0.8096),
+   then confirm with one submission.
 5. Read `estimated_number_of_nodes` from geff metadata in `01_eda.ipynb`
    (confirmed present on 10/10 surveyed train videos, not yet checked on
    `test/`); compare against predicted node counts per video (already
