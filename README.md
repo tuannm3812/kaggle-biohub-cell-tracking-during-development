@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://www.kaggle.com/competitions/biohub-cell-tracking-during-development"><img alt="Kaggle Competition" src="https://img.shields.io/badge/Kaggle-Biohub%20Cell%20Tracking-20BEFF?logo=kaggle&logoColor=white"></a>
-  <a href="docs/3_strategy.md"><img alt="Public LB Score" src="https://img.shields.io/badge/Public%20LB-0.810-success"></a>
+  <a href="docs/3_strategy.md"><img alt="Public LB Score" src="https://img.shields.io/badge/Public%20LB-0.817-success"></a>
   <a href="pyproject.toml"><img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-BSD--3--Clause-lightgrey"></a>
 </p>
@@ -23,28 +23,29 @@ matching. Full task, data format, and metric details:
 A learned detect → link pipeline: the competition's official baseline
 architecture (`TemporalUNet3D` center detector + cross-attention node
 transformer + ILP graph optimizer — see [`NOTICE.md`](NOTICE.md) for
-attribution). A deterministic graph-repair stage (short-track pruning,
-bounded gap recovery) is implemented on top — every top-scoring public
-solution reviewed converges on that shape — but validated against real
-data as **currently regressing the score** (edge Jaccard -0.0133), so it's
-off by default pending root-cause. See
+attribution), plus a deterministic graph-repair stage (short-track
+pruning, bounded gap recovery via interpolated intermediate nodes) —
+every top-scoring public solution reviewed converges on that shape. A
+first version of the repair stage regressed the score (edge Jaccard
+-0.0133) due to a structural bug; fixed and re-validated, it's now a
+genuine +0.007 leaderboard gain. See
 [`docs/3_strategy.md`](docs/3_strategy.md) for the full competitive-landscape
-analysis and the validated finding.
+analysis and both findings.
 
 ## Current best result
 
-**Public leaderboard: 0.810** (submitted 2026-07-21, submission ref
-54875176) — `notebooks/02_baseline_modeling.ipynb`'s `unet_transformer`
-pretrained checkpoint + ILP linking, graph repair off (see "Approach"
-above). This is a genuine Code Competition submission: the kernel runs
-with internet disabled and submits via the Kaggle API's
-`competition_submit_code`, not a file upload (see
-[`docs/1_instructions.md`](docs/1_instructions.md)). Sits between the
-classical public references' 0.73–0.857 and the learned+repair
-references' ~0.897 (`docs/3_strategy.md`) — expected for a working
-learned baseline without the repair layer yet. See
+**Public leaderboard: 0.817** (submitted 2026-07-22, submission ref
+54892941) — `notebooks/02_baseline_modeling.ipynb`'s `unet_transformer`
+pretrained checkpoint + ILP linking + graph repair (short-track pruning
+and gap closing, both validated to genuinely help once a multi-frame-edge
+bug was fixed — see "Approach" above). Up from an initial 0.810
+(repair off, submission ref 54875176). This is a genuine Code Competition
+submission: the kernel runs with internet disabled and submits via the
+Kaggle API's `competition_submit_code`, not a file upload (see
+[`docs/1_instructions.md`](docs/1_instructions.md)). Sits close to the
+learned+repair public references' ~0.897 (`docs/3_strategy.md`). See
 [`docs/3_strategy.md`](docs/3_strategy.md) for the prioritized
-next-experiment roadmap toward closing that gap.
+next-experiment roadmap toward closing that remaining gap.
 
 ## Repository layout
 

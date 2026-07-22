@@ -114,7 +114,7 @@ validated.
   fixing a large existing miscalibration — worth keeping expectations
   modest there relative to the repair root-cause and hyperparameter sweep.
 
-## Validated finding: graph repair currently regresses the score
+## Validated finding: graph repair regressed, root-caused, fixed, now a real gain
 
 Implemented short-track pruning + bounded (1- and 2-frame) gap closing in
 `02_baseline_modeling.ipynb`, unit-tested against synthetic data and a real
@@ -125,22 +125,45 @@ submission on it:
 | | edge_jaccard | division_jaccard | score |
 |---|---:|---:|---:|
 | raw (no repair) | 0.8031 | 0.0000 | 0.8031 |
-| repaired | 0.7897 | 0.0000 | 0.7897 |
+| repaired (buggy) | 0.7897 | 0.0000 | 0.7897 |
 | delta | -0.0133 | +0.0000 | -0.0133 |
 
-**It made things worse.** Both flags (`PRUNE_SHORT_TRACKS`, `CLOSE_GAPS`)
-are off by default as a result — this is the validation harness doing its
-job, not a wasted effort. Leading hypothesis: our detector already runs at
-a strict `DET_THRESHOLD` (0.99), so short predicted segments are less
-likely to be pure noise here than in the classical (DoG-detection)
-pipelines these techniques are drawn from — pruning them away may be
-removing true positives, not false ones. Gap closing may also be
-introducing wrong bridges (a plain nearest-neighbor Hungarian match, not
-the velocity-aware version the reference notebooks use) more often than it
-recovers real missed detections. Not yet root-caused to which technique (or
-both) is responsible — see roadmap step 2 below.
+**Root-caused (2026-07-21, re-reading seshurajup's actual source via
+`kaggle kernels pull` rather than just its summary above):** the
+gap-closing implementation bridged a dangling track-end directly to a
+dangling track-start with **one edge spanning multiple frames** — e.g. `t`
+linked straight to `t+2`. Ground-truth edges only ever connect consecutive
+timepoints (`docs/metrics.md`), so a multi-frame edge is structurally
+incapable of ever matching one — every bridge added was pure noise by
+construction, independent of match quality. seshurajup's own `recover_gap2`
+avoids this by inserting interpolated intermediate nodes at each skipped
+timepoint, connected by ordinary single-frame edges, plus a hard cap
+(`max_added_frac=0.02`) on how many bridges get added — a detail summarized
+too loosely above on first pass; the *shape* of the technique was captured,
+but not this structural requirement.
 
-Also notable: **division_jaccard was 0 in both conditions** — this
+Fixed to match, then re-validated in isolation:
+
+| | edge_jaccard | delta |
+|---|---:|---:|
+| raw (no repair) | 0.8031 | — |
+| `CLOSE_GAPS` alone (fixed) | 0.8050 | +0.0020 |
+| `PRUNE_SHORT_TRACKS` alone | 0.8055 | +0.0024 |
+| both together | 0.8096 | **+0.0065** |
+
+Both techniques genuinely help — the original -0.0133 regression was
+entirely a symptom of the gap-closing bug, not a real problem with pruning
+(the "detector is too strict for pruning" hypothesis below was never
+actually tested in isolation before this). The combined effect is more
+than additive, likely because pruning after gap-closing cleans up bridges
+that didn't connect into a longer valid track. Both flags are on by
+default now. Submitted (kernel version 17, submission ref 54892941):
+**public score 0.817**, up from 0.810 — a +0.007 real LB gain that closely
+matches the +0.0065 local prediction, confirming `VALIDATE_ON_TRAIN_FOLD`
+as a reliable predictor of real gains, not just a directionally-correct
+proxy.
+
+Also notable: **division_jaccard was 0 in every condition above** — this
 checkpoint isn't getting any division credit at all right now, independent
 of repair (`ILP_DIVISION_WEIGHT=1.0` is set, so this is either a genuinely
 hard signal to recover or a configuration issue worth a closer look before
@@ -155,28 +178,31 @@ investing further in division-recovery post-processing).
    54875176). Sits between the classical public references' 0.73–0.857 and
    the learned+repair references' ~0.897 — expected for a working learned
    baseline without the repair layer yet.
-3. **Sweep `DET_THRESHOLD` and the four `ILP_*_WEIGHT` values locally via
-   `VALIDATE_ON_TRAIN_FOLD` — zero new code, cheapest possible next
-   experiment.** The current values are the baseline author's own
-   reported best from *their* sweep, on their own setup — not necessarily
-   ours, and now that local validation is confirmed to track the public
-   LB within ~0.007 (above), there's no reason not to search our own
-   optimum for free before spending more effort on repair or count
-   calibration. Concretely: grid or random search `DET_THRESHOLD` around
-   0.99 (e.g. 0.90–0.995) and each `ILP_*_WEIGHT` independently, keeping
-   whichever combination raises the 19-video `edge_jaccard` above 0.8031,
-   then confirm with one submission.
-4. **Root-cause the graph-repair regression above** before retrying it:
-   toggle `PRUNE_SHORT_TRACKS` and `CLOSE_GAPS` independently via
-   `VALIDATE_ON_TRAIN_FOLD` to isolate which one (or both) hurts, then
-   retune rather than discard — try a looser `PRUNE_MIN_NODES` (2?) and a
-   tighter `GAP_MAX_DIST_UM` (4–5 µm?) informed by whichever is at fault.
+3. ~~Root-cause and fix the graph-repair regression~~ — done 2026-07-21: a
+   structural bug (multi-frame-skip edges, see "Validated finding" above),
+   not a real problem with either technique. Fixed and re-validated
+   (+0.0065 edge_jaccard combined); submitted with repair on (submission
+   ref 54892941). **Public score 0.817**, up from 0.810 — the real +0.007
+   LB gain closely matches the +0.0065 predicted locally, confirming
+   `VALIDATE_ON_TRAIN_FOLD` as a reliable predictor, not just directionally
+   correct.
+4. **Sweep `DET_THRESHOLD` and the four `ILP_*_WEIGHT` values locally via
+   `VALIDATE_ON_TRAIN_FOLD` — zero new code, cheapest next experiment.**
+   The current values are the baseline author's own reported best from
+   *their* sweep, on their own setup and without our (now-fixed) repair
+   stage — not necessarily optimal for ours. Local validation is confirmed
+   to track the public LB within ~0.007, so there's no reason not to search
+   our own optimum for free. Concretely: grid or random search
+   `DET_THRESHOLD` around 0.99 (e.g. 0.90–0.995) and each `ILP_*_WEIGHT`
+   independently, keeping whichever combination raises the 19-video
+   `edge_jaccard` above the current repair-on baseline (0.8096), then
+   confirm with one submission.
 5. Read `estimated_number_of_nodes` from geff metadata in `01_eda.ipynb`
    (confirmed present on 10/10 surveyed train videos, not yet checked on
    `test/`); compare against predicted node counts per video (already
    roughly right-sized, above), then refine `DET_THRESHOLD` / ILP weights
    against that budget via `VALIDATE_ON_TRAIN_FOLD` — a more principled
-   sequel to step 3's blind sweep, not a substitute for it.
+   sequel to step 4's blind sweep, not a substitute for it.
 6. Investigate the division_jaccard=0 finding above — `01_eda.ipynb`'s
    wider 10-video survey found only 1 division across 1,000 combined
    timepoints, so this looks like genuine rarity rather than an
@@ -184,8 +210,11 @@ investing further in division-recovery post-processing).
    division-recovery post-processing on top of a signal that's this rare.
 7. Consider motion-aware relinking (comparing against ILP directly, since
    ILP is already a stronger baseline than the two-pass Hungarian these
-   techniques replace elsewhere), D4 TTA, or training our own checkpoint
-   longer, as later-stage refinements once 3–6 are stable.
+   techniques replace elsewhere), trajectory smoothing (seshurajup's
+   `linefit_smooth`, not yet implemented — sits between pruning and the
+   2-frame gap recovery in their pipeline, not tacked on at the end),
+   D4 TTA, or training our own checkpoint longer, as later-stage
+   refinements once 4–6 are stable.
 
 ## Attribution
 
