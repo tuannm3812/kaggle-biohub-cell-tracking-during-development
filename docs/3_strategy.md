@@ -88,31 +88,39 @@ validated.
 
 ## Things we're already doing right (don't change)
 
-- **Our train-fold validation is more accurate than most public proxies,
-  and now confirmed against a real submission.** `VALIDATE_ON_TRAIN_FOLD`
-  in `02_baseline_modeling.ipynb` calls the *actual* vendored
+- **Our train-fold validation is more accurate than most public proxies —
+  but "confirmed against a real submission" turned out to mean something
+  narrower than first thought.** `VALIDATE_ON_TRAIN_FOLD` in
+  `02_baseline_modeling.ipynb` calls the *actual* vendored
   `tracking_cellmot.metrics.evaluate` — the same code the organizers
-  ship — not a reimplementation. Several reviewed notebooks (seshurajup,
-  jirkaborovec) hand-roll their own proxy scorer, which risks drifting
-  from the real metric. The 19-video local validation score (0.8031, raw
-  ILP) landed within 0.007 of the actual public leaderboard score for the
-  same config (0.810) — close enough that **further hyperparameter tuning
-  should happen locally first**, saving submission quota for confirming a
-  genuine improvement rather than searching blind.
+  ship — not a reimplementation, unlike several reviewed notebooks
+  (seshurajup, jirkaborovec) that hand-roll their own proxy scorer. It
+  correctly predicted the graph-repair fix's leaderboard gain **twice**
+  (isolated techniques and combined, `docs/4_experiments.md`), but then
+  missed the `DET_THRESHOLD` sweep's real direction entirely (predicted
+  +0.0025, got -0.022 — see `docs/4_experiments.md`'s analysis). Working
+  hypothesis: it's reliable for a single, mechanism-backed hypothesis
+  test, but *selecting* among several candidates for a parameter that
+  controls total detection volume (which the Adjusted Edge Jaccard's
+  over-prediction penalty is directly sensitive to) is a different, riskier
+  use of the same tool. Treat future threshold/`ILP_*_WEIGHT` sweeps as
+  hypotheses to confirm with a submission, not settled conclusions.
 - **Physical-µm gating is already handled** by the vendored baseline
   (`pool_kernel_um`, ILP distance weights) — the anisotropy correction
   every classical notebook implements by hand is already built in.
 - **Schema correctness is verified against the real `sample_submission.csv`**,
   not assumed (`docs/1_instructions.md`) — several public notebooks note
   this exact risk ("a mismatch... causes a silent score of 0").
-- **Predicted node counts already land in the right ballpark.** The
-  submitted run predicted 7,603–75,760 nodes across the 4 test videos
-  (avg ~41,171) — the same order of magnitude as the 10 train videos'
+- **Predicted node counts land in the right ballpark at `DET_THRESHOLD=0.99`** —
+  the submitted run predicted 7,603–75,760 nodes across the 4 test videos
+  (avg ~41,171), the same order of magnitude as the 10 train videos'
   `estimated_number_of_nodes` (15,335–78,644, `docs/2_eda_insights.md`).
-  `DET_THRESHOLD=0.99` isn't grossly over- or under-predicting overall, so
-  count-calibration (roadmap step 5) likely refines the budget rather than
-  fixing a large existing miscalibration — worth keeping expectations
-  modest there relative to the repair root-cause and hyperparameter sweep.
+  Not re-checked at `DET_THRESHOLD=0.90` — that submission predicted
+  177,137 total nodes vs 0.99's 164,682 (`docs/4_experiments.md`), a
+  meaningfully larger jump, and may be exactly where the sweep's real-LB
+  miss came from if the real test videos' true-count budget is tighter
+  than train's. Worth checking directly (roadmap step 6) before trusting
+  any count-affecting change again.
 
 ## Validated finding: graph repair regressed, root-caused, fixed, now a real gain
 
@@ -147,34 +155,42 @@ investing further in division-recovery post-processing).
    submitted with repair on: `docs/5_submissions.md` #2, **public score
    0.817**, confirming `VALIDATE_ON_TRAIN_FOLD` as a reliable predictor of
    real gains, not just directionally correct.
-4. **Sweep `DET_THRESHOLD` and the four `ILP_*_WEIGHT` values locally via
-   `VALIDATE_ON_TRAIN_FOLD` — zero new code, cheapest next experiment.**
-   The current values are the baseline author's own reported best from
-   *their* sweep, on their own setup and without our (now-fixed) repair
-   stage — not necessarily optimal for ours. Local validation is confirmed
-   to track the public LB within ~0.007, so there's no reason not to search
-   our own optimum for free. In progress: `docs/4_experiments.md`'s
-   `DET_THRESHOLD` sweep table, keeping whichever combination raises the
-   19-video `edge_jaccard` above the current repair-on baseline (0.8096),
-   then confirm with one submission.
-5. Read `estimated_number_of_nodes` from geff metadata in `01_eda.ipynb`
+4. ~~Sweep `DET_THRESHOLD` locally via `VALIDATE_ON_TRAIN_FOLD`~~ — done,
+   `docs/4_experiments.md`'s sweep table, **but the result didn't
+   transfer**: 0.90 predicted +0.0025 locally, scored **0.795** for real
+   (`docs/5_submissions.md` #3, -0.022 vs #2) — the first miss this
+   session after two correct predictions from the same tool. Reverted to
+   `DET_THRESHOLD=0.99`. Full analysis: `docs/4_experiments.md`.
+5. **Understand why the sweep missed before trying `ILP_*_WEIGHT` the same
+   way** — two candidate explanations in `docs/4_experiments.md`
+   (multiple-comparisons risk from selecting among 4 candidates on one
+   small sample; and/or `DET_THRESHOLD`'s effect on total detection volume
+   interacting with the Adjusted Edge Jaccard's over-prediction penalty
+   differently on the real 4-video test set than on a random 19-video
+   train sample). Reading `estimated_number_of_nodes` on `test/` (step 6)
+   bears directly on the second hypothesis — do that before any further
+   count-affecting sweep, and validate on a larger or stratified sample if
+   one is attempted.
+6. Read `estimated_number_of_nodes` from geff metadata in `01_eda.ipynb`
    (confirmed present on 10/10 surveyed train videos, not yet checked on
    `test/`); compare against predicted node counts per video (already
-   roughly right-sized, above), then refine `DET_THRESHOLD` / ILP weights
-   against that budget via `VALIDATE_ON_TRAIN_FOLD` — a more principled
-   sequel to step 4's blind sweep, not a substitute for it.
-6. Investigate the division_jaccard=0 finding above — `01_eda.ipynb`'s
+   roughly right-sized at `DET_THRESHOLD=0.99`, above — not re-checked at
+   0.90, which may be exactly where the sweep's miss came from), then
+   refine `DET_THRESHOLD` against that budget via `VALIDATE_ON_TRAIN_FOLD`
+   — a more principled sequel to step 4's blind sweep, not a substitute
+   for it, and now a higher priority given step 4's result.
+7. Investigate the division_jaccard=0 finding above — `01_eda.ipynb`'s
    wider 10-video survey found only 1 division across 1,000 combined
    timepoints, so this looks like genuine rarity rather than an
    under-detection issue, but worth confirming before adding
    division-recovery post-processing on top of a signal that's this rare.
-7. Consider motion-aware relinking (comparing against ILP directly, since
+8. Consider motion-aware relinking (comparing against ILP directly, since
    ILP is already a stronger baseline than the two-pass Hungarian these
    techniques replace elsewhere), trajectory smoothing (seshurajup's
    `linefit_smooth`, not yet implemented — sits between pruning and the
    2-frame gap recovery in their pipeline, not tacked on at the end),
    D4 TTA, or training our own checkpoint longer, as later-stage
-   refinements once 4–6 are stable.
+   refinements once 4–7 are stable.
 
 ## Attribution
 

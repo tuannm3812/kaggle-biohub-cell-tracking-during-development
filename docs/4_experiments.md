@@ -32,20 +32,59 @@ issue — not yet investigated (`docs/3_strategy.md` roadmap).
 Full write-up of the root cause and fix: `02_baseline_modeling.ipynb`
 section 2's finding cell.
 
-## DET_THRESHOLD sweep (in progress)
+## DET_THRESHOLD sweep
 
 `docs/3_strategy.md` roadmap step 4 — sweeping
 `DET_THRESHOLD_CANDIDATES = [0.90, 0.95, 0.99, 0.995]` against the
 repair-on baseline (#4 above, 0.8096), since 0.99 is the baseline author's
 own reported best for *their* setup — chosen before our repair stage
-existed, so not necessarily still optimal.
+existed, so not necessarily still optimal. Kernel version 18, 2026-07-22.
 
-| DET_THRESHOLD | raw score | repaired score | Note |
-|---:|---:|---:|---|
-| 0.90 | pending | pending | |
-| 0.95 | pending | pending | |
-| 0.99 | 0.8031 | 0.8096 | current default — same as #0/#4 above |
-| 0.995 | pending | pending | |
+| DET_THRESHOLD | raw score | repaired score | Δ vs 0.99 (repaired) |
+|---:|---:|---:|---:|
+| 0.90 | 0.8036 | **0.8121** | **+0.0025** |
+| 0.95 | 0.8049 | 0.8119 | +0.0023 |
+| 0.99 | 0.8031 | 0.8096 | — (previous default) |
+| 0.995 | 0.8017 | 0.8079 | -0.0017 |
 
-Kicked off 2026-07-22 (kernel version 18) — update this table once it
-completes.
+**Locally, 0.90 looked like the winner** — the repaired score decreases
+monotonically as `DET_THRESHOLD` increases across all four points tested.
+Set as the new default and submitted: `docs/5_submissions.md` #3.
+
+**It didn't transfer.** Public score: **0.795** — worse than 0.99's
+confirmed 0.817 by -0.022, and worse than the very first submission
+(0.810). `DET_THRESHOLD` reverted to 0.99. This is the first case this
+session where `VALIDATE_ON_TRAIN_FOLD` didn't predict a real submission's
+direction, let alone its magnitude, after two prior cases (the repair fix,
+isolated and combined) where it did.
+
+**Why this one didn't transfer, unlike the repair fix — two hypotheses,
+not yet distinguished:**
+
+1. **Multiple-comparisons risk.** The repair fix was one hypothesis-driven
+   test (does the corrected implementation help, yes/no). The threshold
+   sweep instead picked the empirical best of four candidates on the same
+   19-video sample — even with no distribution shift at all, selecting a
+   arg-max over several candidates from a small held-out set tends to
+   overstate the true improvement (regression to the mean). This alone
+   could explain a smaller-than-predicted gain, though probably not a
+   sign flip this large.
+2. **Count-penalty sensitivity to which videos get sampled.**
+   `DET_THRESHOLD` directly controls detection volume, which the Adjusted
+   Edge Jaccard penalizes via `(T_pred - T_true) / T_true`
+   (`docs/metrics.md`). `01_eda.ipynb` found ~15× annotation-density
+   variance and no correlation between density and estimated true count
+   across just 10 train videos — so a random 19-video train sample's
+   over-prediction budget may not resemble the real, only-4-video test
+   set's at all. The repair fix mainly changed graph *structure*
+   (edges/nodes near existing tracks), a more localized effect; a
+   threshold change alters total predicted volume everywhere at once,
+   which is exactly the quantity this penalty term is sensitive to.
+
+**Methodological takeaway**: trust `VALIDATE_ON_TRAIN_FOLD` for a single,
+mechanism-backed hypothesis (like the repair fix) more than for *selecting*
+among several candidate values for count-affecting parameters
+(`DET_THRESHOLD`, and by extension the `ILP_*_WEIGHT`s) — confirm any such
+selection with a real submission before adopting it as the new default,
+and consider validating on a larger or stratified sample (not just one
+random 19-video draw) before the next sweep. See `docs/3_strategy.md`.
