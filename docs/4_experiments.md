@@ -88,3 +88,17 @@ among several candidate values for count-affecting parameters
 selection with a real submission before adopting it as the new default,
 and consider validating on a larger or stratified sample (not just one
 random 19-video draw) before the next sweep. See `docs/3_strategy.md`.
+
+**Follow-up, 2026-07-22**: checked whether hypothesis 2 (count-budget
+sensitivity) is even actionable — `01_eda.ipynb` section 4 read
+`estimated_number_of_nodes` directly off the real test set's `zarr.json`
+metadata (kernel `tuannm3812/biohub-eda` v8). Result: **0/4 test videos
+have this field**, vs 10/10 on the train sample — they ship no `.geff` at
+all, since there's no ground truth to store. This rules out any
+`DET_THRESHOLD` calibration built on a per-test-video true-count estimate;
+it's simply not available at inference time. Hypothesis 1
+(multiple-comparisons risk from picking the best of 4 candidates on one
+small sample) is now the leading explanation for the miss, though the
+underlying detection-volume/over-prediction-penalty interaction from
+hypothesis 2 may still contribute even without a calibration signal to
+exploit it directly. See `docs/2_eda_insights.md` and `docs/3_strategy.md`.

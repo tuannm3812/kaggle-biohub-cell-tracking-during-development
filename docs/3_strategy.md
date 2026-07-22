@@ -63,15 +63,15 @@ validated.
    small window, e.g. `win=2`) or velocity-blended smoothing of node
    coordinates post-linking — cheap, doesn't touch topology, tightens
    centroid-distance matching against GT.
-5. **Count calibration against `estimated_number_of_nodes`.** Every train
-   (and per the geff spec, potentially test) video's `.geff` `zarr.json`
-   carries `attributes.geff.extra.estimated_number_of_nodes` — a true-count
-   estimate available *without* ground truth. jirkaborovec's notebook
-   learns a `generous_threshold → estimated_count` calibration ratio on
-   train, then applies a per-video detection budget (`topk` peaks/frame)
-   on test to avoid over-predicting (Adjusted Edge Jaccard explicitly
-   penalizes `T_pred > T_true`, see `docs/metrics.md`). We haven't read this
-   field yet — do that before tuning `DET_THRESHOLD` further.
+5. ~~Count calibration against `estimated_number_of_nodes`~~ — **ruled
+   out**: confirmed present on 10/10 surveyed train videos but **0/4 real
+   test videos** (`01_eda.ipynb` section 4, `docs/2_eda_insights.md`) —
+   test videos ship no `.geff` at all, so this field simply isn't readable
+   at inference time. jirkaborovec's `generous_threshold → estimated_count`
+   calibration (learned on train, applied on test) isn't reproducible here
+   unless their test set differs from ours or they calibrate some other
+   way — worth rereading their notebook if this technique still seems
+   worth chasing, but not assumed anymore.
 6. **Division recovery is low priority.** `score = adjusted_edge_jaccard +
    0.1 * division_jaccard` (`docs/metrics.md`) — divisions are only 10% of the
    score. seshurajup's 0.857 run has `allow_divisions: False` entirely.
@@ -117,10 +117,11 @@ validated.
   `estimated_number_of_nodes` (15,335–78,644, `docs/2_eda_insights.md`).
   Not re-checked at `DET_THRESHOLD=0.90` — that submission predicted
   177,137 total nodes vs 0.99's 164,682 (`docs/4_experiments.md`), a
-  meaningfully larger jump, and may be exactly where the sweep's real-LB
-  miss came from if the real test videos' true-count budget is tighter
-  than train's. Worth checking directly (roadmap step 6) before trusting
-  any count-affecting change again.
+  meaningfully larger jump. This comparison against train's
+  `estimated_number_of_nodes` range is informal (test videos have no such
+  field of their own to check against directly — confirmed 0/4,
+  `docs/2_eda_insights.md`), so it's a loose sanity check, not a
+  calibration.
 
 ## Validated finding: graph repair regressed, root-caused, fixed, now a real gain
 
@@ -161,24 +162,26 @@ investing further in division-recovery post-processing).
    (`docs/5_submissions.md` #3, -0.022 vs #2) — the first miss this
    session after two correct predictions from the same tool. Reverted to
    `DET_THRESHOLD=0.99`. Full analysis: `docs/4_experiments.md`.
-5. **Understand why the sweep missed before trying `ILP_*_WEIGHT` the same
-   way** — two candidate explanations in `docs/4_experiments.md`
-   (multiple-comparisons risk from selecting among 4 candidates on one
-   small sample; and/or `DET_THRESHOLD`'s effect on total detection volume
-   interacting with the Adjusted Edge Jaccard's over-prediction penalty
-   differently on the real 4-video test set than on a random 19-video
-   train sample). Reading `estimated_number_of_nodes` on `test/` (step 6)
-   bears directly on the second hypothesis — do that before any further
-   count-affecting sweep, and validate on a larger or stratified sample if
-   one is attempted.
-6. Read `estimated_number_of_nodes` from geff metadata in `01_eda.ipynb`
-   (confirmed present on 10/10 surveyed train videos, not yet checked on
-   `test/`); compare against predicted node counts per video (already
-   roughly right-sized at `DET_THRESHOLD=0.99`, above — not re-checked at
-   0.90, which may be exactly where the sweep's miss came from), then
-   refine `DET_THRESHOLD` against that budget via `VALIDATE_ON_TRAIN_FOLD`
-   — a more principled sequel to step 4's blind sweep, not a substitute
-   for it, and now a higher priority given step 4's result.
+5. ~~Understand why the sweep missed before trying `ILP_*_WEIGHT` the same
+   way~~ — **partially resolved**. Of the two candidate explanations in
+   `docs/4_experiments.md`, the count-budget one specifically depended on
+   calibrating against `estimated_number_of_nodes` per test video — now
+   ruled out (step 6, below: confirmed absent on all 4 test videos). The
+   multiple-comparisons hypothesis (picking the empirical best of 4
+   candidates on one small 19-video sample) is now the leading
+   explanation, though not independently confirmed — the underlying
+   detection-volume/over-prediction-penalty interaction from hypothesis 2
+   could still contribute even without a per-video calibration signal to
+   exploit it. Any future threshold or `ILP_*_WEIGHT` sweep should
+   validate on a larger or stratified sample and treat a "best" candidate
+   as a hypothesis to confirm with a real submission, not a conclusion.
+6. ~~Read `estimated_number_of_nodes` from geff metadata in
+   `01_eda.ipynb` and check it against `test/`~~ — done,
+   `docs/2_eda_insights.md`: present on 10/10 surveyed train videos,
+   **absent on 0/4 test videos** (they ship no `.geff` at all). This
+   closes off any `DET_THRESHOLD` calibration approach built on this
+   field — there's no per-test-video budget to calibrate against, only
+   the loose train-vs-test node-count sanity check already noted above.
 7. Investigate the division_jaccard=0 finding above — `01_eda.ipynb`'s
    wider 10-video survey found only 1 division across 1,000 combined
    timepoints, so this looks like genuine rarity rather than an

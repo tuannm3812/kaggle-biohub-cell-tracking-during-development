@@ -1,7 +1,7 @@
 # EDA Insights
 
 From `notebooks/01_eda.ipynb`'s trusted runs on Kaggle, most recently
-2026-07-21 (kernel `tuannm3812/biohub-eda`, version 7, `COMPLETE`). Charts,
+2026-07-22 (kernel `tuannm3812/biohub-eda`, version 8, `COMPLETE`). Charts,
 tables, and the animated preview below are pulled directly from that run's
 saved output (`kaggle kernels output`) — not regenerated or estimated —
 and mirror what renders on the kernel page itself
@@ -72,6 +72,23 @@ recovery entirely. Division recovery remains low-priority (10% metric
 weight) until edge/detection quality is solid — see `docs/3_strategy.md`'s
 roadmap.
 
+## `estimated_number_of_nodes` is not available on the test set
+
+**0/4 test videos have `estimated_number_of_nodes`** — confirmed by
+directly reading each test video's `zarr.json` (`01_eda.ipynb` section 4).
+This isn't a partial or differently-keyed result: the test videos ship no
+`.geff` at all, since they carry no ground truth, and this field lives
+inside a `.geff`'s metadata. Any strategy that calibrates `DET_THRESHOLD`
+(or similar count-affecting parameters) per test video against its
+estimated true cell count is therefore **not implementable** — the signal
+it depends on doesn't exist at inference time on the real test set, only
+on train. This directly bears on why the `DET_THRESHOLD=0.90` sweep
+(`docs/4_experiments.md`) didn't transfer: of the two hypotheses raised
+there, the count-budget one specifically assumed this field (or a
+correlate of it) could inform calibration — it can't, at least not this
+way. The multiple-comparisons hypothesis is now the more likely
+explanation. See `docs/3_strategy.md`.
+
 ## Visual check: do annotations land on real cells?
 
 `01_eda.ipynb` section 5 flagged this as worth checking directly — a
@@ -97,8 +114,7 @@ visible cells in every frame stay unannotated throughout:
   199, not just 10) now that Kaggle runtime is known to be fast, to confirm
   the ~15× density spread and shape/scale consistency found here hold
   across the full train set, not just this sample of 10.
-- Confirm whether `estimated_number_of_nodes` is **also** present on the
-  4 real `test/` videos (not yet checked — they lack `.geff` ground truth
-  entirely, so this needs a separate read of their `zarr.json` metadata)
-  before wiring a `DET_THRESHOLD` calibration step into
-  `02_baseline_modeling.ipynb` around it — see `docs/3_strategy.md`.
+- The `estimated_number_of_nodes`-based calibration idea is closed off
+  (see above) — focus instead on distinguishing the multiple-comparisons
+  hypothesis for the `DET_THRESHOLD` miss, per `docs/3_strategy.md`'s
+  roadmap.
