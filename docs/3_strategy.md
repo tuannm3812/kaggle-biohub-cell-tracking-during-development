@@ -45,20 +45,20 @@ validated.
    term. Universal across every notebook reviewed, ours included via ILP —
    worth comparing our ILP's implicit linking against an explicit
    motion-relink pass.
-2. **Bounded gap recovery, two tiers.** A "gap" pass closes 1-frame misses
-   (a track's node is missing at exactly one timepoint); a stricter "gap2"
-   pass separately handles 2-frame misses so a loose setting can't
-   introduce non-consecutive edges. seshurajup's `recover_gap2` defaults:
-   `max_total_um=10.2, max_step_um=4.4, max_added_frac=0.02` (caps total
-   recovered distance, per-step distance, and the fraction of edges gap2
-   is allowed to add). **Tried 2026-07-21, currently regresses our
-   score** — see "Validated finding" below before retrying.
-3. **Short-track pruning.** Drop tracks below a minimum length (4–7 frames
-   across the notebooks reviewed) after linking/gap-closing — isolated or
-   near-isolated short fragments are usually false positives that hurt
-   the Adjusted Edge Jaccard's node-count penalty more than they help
-   recall. **Tried 2026-07-21, currently regresses our score** — see
-   "Validated finding" below before retrying.
+2. ~~**Bounded gap recovery, two tiers.**~~ A "gap" pass closes 1-frame
+   misses (a track's node is missing at exactly one timepoint); a
+   stricter "gap2" pass separately handles 2-frame misses so a loose
+   setting can't introduce non-consecutive edges. seshurajup's
+   `recover_gap2` defaults: `max_total_um=10.2, max_step_um=4.4,
+   max_added_frac=0.02`. **Implemented and confirmed working** (roadmap
+   step 3) — see `docs/4_experiments.md`'s Graph repair section for the
+   regression-then-fix story.
+3. ~~**Short-track pruning.**~~ Drop tracks below a minimum length (4–7
+   frames across the notebooks reviewed) after linking/gap-closing —
+   isolated or near-isolated short fragments are usually false positives
+   that hurt the Adjusted Edge Jaccard's node-count penalty more than
+   they help recall. **Implemented and confirmed working** (roadmap step
+   3) — see `docs/4_experiments.md`'s Graph repair section.
 4. **Trajectory smoothing.** Line-fit (local linear regression over a
    small window, e.g. `win=2`) or velocity-blended smoothing of node
    coordinates post-linking — cheap, doesn't touch topology, tightens
@@ -88,121 +88,62 @@ validated.
 
 ## Things we're already doing right (don't change)
 
-- **Our train-fold validation is more accurate than most public proxies —
-  but "confirmed against a real submission" turned out to mean something
-  narrower than first thought.** `VALIDATE_ON_TRAIN_FOLD` in
-  `02_baseline_modeling.ipynb` calls the *actual* vendored
-  `tracking_cellmot.metrics.evaluate` — the same code the organizers
-  ship — not a reimplementation, unlike several reviewed notebooks
-  (seshurajup, jirkaborovec) that hand-roll their own proxy scorer. It
-  correctly predicted the graph-repair fix's leaderboard gain **twice**
-  (isolated techniques and combined, `docs/4_experiments.md`), but then
-  missed the `DET_THRESHOLD` sweep's real direction entirely at a 19-video
-  sample (predicted +0.0025, got -0.022) — re-running at 60 videos
-  **reversed the ranking** and matched the real submission's winner,
-  confirming the tool itself wasn't wrong, the *sample size* was
-  (`docs/4_experiments.md`). Settled conclusion: it's reliable for a
-  single, mechanism-backed hypothesis test even at a small sample, but
-  *selecting* among several close candidates needs a substantially larger
-  held-out set (≥60 videos, not 19) before the "best" one means anything —
-  and should still be confirmed with a real submission before fully
-  trusting it.
+- **Train-fold validation is trustworthy for a single hypothesis, not for
+  picking a "best" among several candidates without a large-enough
+  sample.** `VALIDATE_ON_TRAIN_FOLD` in `02_baseline_modeling.ipynb` calls
+  the *actual* vendored `tracking_cellmot.metrics.evaluate` — the same
+  code the organizers ship, not a reimplementation like several reviewed
+  notebooks use. See `docs/4_experiments.md`'s DET_THRESHOLD sweep for why
+  this distinction matters and what sample size is now required.
 - **Physical-µm gating is already handled** by the vendored baseline
   (`pool_kernel_um`, ILP distance weights) — the anisotropy correction
   every classical notebook implements by hand is already built in.
 - **Schema correctness is verified against the real `sample_submission.csv`**,
   not assumed (`docs/1_instructions.md`) — several public notebooks note
   this exact risk ("a mismatch... causes a silent score of 0").
-- **Predicted node counts land in the right ballpark at `DET_THRESHOLD=0.99`** —
-  the submitted run predicted 7,603–75,760 nodes across the 4 test videos
-  (avg ~41,171), the same order of magnitude as the 10 train videos'
-  `estimated_number_of_nodes` (15,335–78,644, `docs/2_eda_insights.md`).
-  Not re-checked at `DET_THRESHOLD=0.90` — that submission predicted
-  177,137 total nodes vs 0.99's 164,682 (`docs/4_experiments.md`), a
-  meaningfully larger jump. This comparison against train's
-  `estimated_number_of_nodes` range is informal (test videos have no such
-  field of their own to check against directly — confirmed 0/4,
-  `docs/2_eda_insights.md`), so it's a loose sanity check, not a
-  calibration.
-
-## Validated finding: graph repair regressed, root-caused, fixed, now a real gain
-
-Short-track pruning + gap closing initially **regressed** the score
-(edge_jaccard 0.8031 → 0.7897) — root-caused to a structural bug (gap
-bridges spanned multiple frames, which no ground-truth edge can ever
-match), fixed by inserting interpolated intermediate nodes instead, then
-re-validated: both techniques genuinely help in isolation, and combined
-give **+0.0065 edge_jaccard** locally, confirmed by a real **+0.007**
-leaderboard gain (0.810 → 0.817) once submitted. Both flags are on by
-default now. Full experiment-by-experiment numbers: `docs/4_experiments.md`
-(local validation) and `docs/5_submissions.md` (real submissions).
-
-Also notable: **division_jaccard was 0 in every condition tested** — this
-checkpoint isn't getting any division credit at all right now, independent
-of repair. Root-caused in roadmap step 7 below: not a hard-to-recover rare
-signal, but massive over-prediction of candidate forks that never land on
-a real division.
+- **Predicted node counts land in the right ballpark** at the current
+  default — see roadmap step 6 below and `docs/2_eda_insights.md` for the
+  train-vs-test sanity check this is based on (informal; test videos have
+  no `estimated_number_of_nodes` field of their own to check against
+  directly).
 
 ## Roadmap
 
-1. ~~Get a first valid `submission.csv` from the pretrained baseline~~ — done,
-   `docs/2_eda_insights.md`/README.
-2. ~~Upload the current (repair-off) `submission.csv` to bank a real LB
-   number~~ — done, `docs/5_submissions.md` #1, **public score 0.810**.
-   Sits between the classical public references' 0.73–0.857 and the
-   learned+repair references' ~0.897 — expected for a working learned
-   baseline without the repair layer yet.
-3. ~~Root-cause and fix the graph-repair regression~~ — done, a structural
-   bug, not a real problem with either technique (`docs/4_experiments.md`
-   #1–#4). Fixed, re-validated (+0.0065 edge_jaccard combined), and
-   submitted with repair on: `docs/5_submissions.md` #2, **public score
-   0.817**, confirming `VALIDATE_ON_TRAIN_FOLD` as a reliable predictor of
-   real gains, not just directionally correct.
-4. ~~Sweep `DET_THRESHOLD` locally via `VALIDATE_ON_TRAIN_FOLD`~~ — done,
-   `docs/4_experiments.md`'s sweep table, **but the result didn't
-   transfer**: 0.90 predicted +0.0025 locally, scored **0.795** for real
-   (`docs/5_submissions.md` #3, -0.022 vs #2) — the first miss this
-   session after two correct predictions from the same tool. Reverted to
-   `DET_THRESHOLD=0.99`. Full analysis: `docs/4_experiments.md`.
-5. ~~Understand why the sweep missed before trying `ILP_*_WEIGHT` the same
-   way~~ — **resolved**. Re-ran the sweep at 3x the sample (60 val videos,
-   narrowed to `[0.90, 0.99]`, kernel v20): **the ranking flipped** — 0.99
-   now wins (repaired score 0.8268 vs 0.8246), reversing the 19-video
-   sample's "0.90 wins" (0.8121 vs 0.8096). The original signal was
-   small-sample noise (multiple-comparisons risk), confirmed rather than
-   just hypothesized — no distribution-shift explanation is needed to
-   account for the miss. 0.99 remains the default; no new submission
-   needed. Full numbers: `docs/4_experiments.md`. **Going forward**: use
-   at least a 60-video (~30%) sample, not the original 19 (~10%), for any
-   future threshold/`ILP_*_WEIGHT` candidate selection, and still confirm
-   the winner with a real submission before trusting it fully.
-6. ~~Read `estimated_number_of_nodes` from geff metadata in
-   `01_eda.ipynb` and check it against `test/`~~ — done,
-   `docs/2_eda_insights.md`: present on 10/10 surveyed train videos,
-   **absent on 0/4 test videos** (they ship no `.geff` at all). This
-   closes off any `DET_THRESHOLD` calibration approach built on this
-   field — there's no per-test-video budget to calibrate against, only
-   the loose train-vs-test node-count sanity check already noted above.
-7. ~~Investigate the division_jaccard=0 finding above~~ — **closed out.**
-   The "genuine rarity" framing was wrong: raw val-fold predictions show
-   **690 candidate forks** across 60 videos against an EDA-estimated ~6
-   expected (~115x over-prediction), with **zero** ever recovering a real
-   division. But a follow-up `ILP_DIVISION_WEIGHT` sweep (`1.0` vs `10.0`,
-   60-video sample, kernel v21) found raising the cost enough to
-   eliminate every candidate fork (690 → 0) barely moves `edge_jaccard`
-   (-0.0001 raw, +0.0003 repaired — noise-level). The over-prediction is
-   real but **harmless to the score** — the edge Jaccard's own
-   "ignore forks with no local GT evidence" rule was already absorbing
-   almost all of it. `ILP_DIVISION_WEIGHT` stays at its default (`1.0`);
-   no further tuning here is worth the effort relative to the remaining
-   roadmap. Full numbers: `docs/4_experiments.md`.
-8. Consider motion-aware relinking (comparing against ILP directly, since
-   ILP is already a stronger baseline than the two-pass Hungarian these
-   techniques replace elsewhere), trajectory smoothing (seshurajup's
-   `linefit_smooth`, not yet implemented — sits between pruning and the
-   2-frame gap recovery in their pipeline, not tacked on at the end),
-   D4 TTA, or training our own checkpoint longer, as later-stage
-   refinements once 4–7 are stable.
+1. ~~Get a first valid `submission.csv` from the pretrained baseline~~ —
+   done. `docs/2_eda_insights.md`, README.
+2. ~~Bank a real LB number~~ — done. `docs/5_submissions.md` #1 (0.810).
+3. ~~Root-cause and fix the graph-repair regression~~ — done, a
+   structural bug in the first gap-closing implementation, not a real
+   problem with either repair technique. `docs/4_experiments.md` (Graph
+   repair), `docs/5_submissions.md` #2 (0.817).
+4. ~~Sweep `DET_THRESHOLD` locally~~ — done, but the result didn't
+   transfer to a real submission. `docs/4_experiments.md` (DET_THRESHOLD
+   sweep), `docs/5_submissions.md` #3.
+5. ~~Understand why the sweep missed~~ — resolved: a 3x-larger
+   re-validation reversed the local ranking, confirming small-sample noise
+   rather than a train/test distribution effect. No new submission
+   needed. `docs/4_experiments.md`. **Going forward**: use at least a
+   60-video sample, not 19, for any future threshold/`ILP_*_WEIGHT`
+   candidate selection.
+6. ~~Read `estimated_number_of_nodes` on `test/`~~ — done: absent on 0/4
+   test videos (they ship no `.geff` at all), ruling out any
+   test-time count calibration built on this field. `docs/2_eda_insights.md`.
+7. ~~Investigate the division_jaccard=0 finding~~ — closed out: massive
+   over-prediction of candidate forks (not rarity), but confirmed
+   harmless to `edge_jaccard` via a follow-up `ILP_DIVISION_WEIGHT`
+   sweep. No further tuning here is worth the effort.
+   `docs/4_experiments.md` (Division over-prediction).
+8. ~~Time-test training our own checkpoint before committing to a full
+   run~~ — done: **not practical on this compute budget**. Extrapolated
+   from a bounded test (`docs/4_experiments.md`), a full epoch on the
+   ~179-video train fold costs ~2.2 hours; the baseline author's own
+   50-epoch recipe would take ~110 hours (~4.6 days), and even 3 epochs
+   consumes most of a single Kaggle GPU session. Not pursuing full
+   training now. **Next**: motion-aware relinking (compare against ILP's
+   implicit linking directly) or trajectory smoothing — both reuse
+   `VALIDATE_ON_TRAIN_FOLD` with no training cost. D4 test-time
+   augmentation remains a later option (it multiplies *inference* cost
+   ~8x, not training cost, so it's unaffected by this finding).
 
 ## Attribution
 

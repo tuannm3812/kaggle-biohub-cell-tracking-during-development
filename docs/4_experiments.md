@@ -159,6 +159,8 @@ convergence and its fork/division channel is particularly under-trained;
 (b) `ILP_DIVISION_WEIGHT=1.0` is too permissive relative to
 `ILP_EDGE_WEIGHT=-1.0`.
 
+## Division over-prediction
+
 **Why this might still be worth fixing even though division_jaccard is
 already 0 either way**: a spurious second outgoing edge from a fork is
 itself a candidate edge-level false positive under the edge Jaccard's own
@@ -189,3 +191,40 @@ submission needed. This closes out the division investigation
 (`docs/3_strategy.md` roadmap step 7) — the 690-fork over-prediction is a
 real, interesting model-quality observation, but not one worth spending
 further tuning effort on before higher-leverage roadmap items.
+
+## Training timing test
+
+`docs/3_strategy.md` roadmap step 8. Before committing to training our own
+checkpoint (the baseline author's own recipe: `--epochs 50` on the full
+train fold), there was no timing data for it, unlike the predict-side
+sweeps above (sized from a measured ~100s/video). Ran a bounded test
+instead: 15 train / 5 val videos, 1 epoch, capped at 20 iterations
+(kernel v23; the script's own default `--batch-size 16` OOMs on a T4 once
+gradients are held during backprop, unlike inference — used `2` instead).
+
+| | Measured |
+|---|---:|
+| Data loading | 0.78s/video (one-time, before the epoch loop) |
+| Train step | 0.925s/batch (batch_size=2, so ~0.46s/window) |
+| Val eval | 7.68s/video/epoch |
+
+Extrapolated to a real run (~179 train / ~20 val videos, the auto-split's
+90/10):
+
+| | Extrapolated |
+|---|---:|
+| One-time data loading | ~2.6 min |
+| Training, per epoch | **~2.2 hours** |
+| Val eval, per epoch | ~2.6 min |
+| 3 epochs (current notebook default) | **~6.6 hours** |
+| 50 epochs (baseline author's own recipe) | **~110 hours (~4.6 days)** |
+
+**Conclusion**: training our own checkpoint at any epoch count close to
+the baseline's own recipe is not practical within a single Kaggle GPU
+session (commonly ~9–12h) or reasonable weekly quota — even 3 epochs
+consumes most of one session. Not pursuing full training now; redirecting
+effort to the cheaper repair-stage techniques (motion-aware relinking,
+trajectory smoothing) that reuse the existing `VALIDATE_ON_TRAIN_FOLD`
+infrastructure without any training cost. Revisit if a substantially
+cheaper training setup emerges (a bigger accelerator, mixed precision, or
+a much smaller epoch count with early stopping).
