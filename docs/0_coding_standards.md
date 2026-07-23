@@ -149,7 +149,8 @@ single kernel.
 
 Each notebook should include:
 
-- Purpose statement.
+- Purpose statement — a short paragraph, not a page. What the notebook
+  does, not how it's deployed (see the markdown boundary below).
 - Configuration cell near the top, with an `IS_KAGGLE` check that resolves
   paths for both Kaggle execution (mounted competition data + the
   `cellmot-baseline-artifacts` code/weights dataset) and local development,
@@ -158,7 +159,6 @@ Each notebook should include:
 - Deterministic seed.
 - Markdown insight cells after every important plot or metric.
 - Numbered sections with clear reader-facing headers.
-- A final "Findings / limitations / next experiment" section.
 
 **Outputs policy:** clear outputs before committing if the notebook code
 changed and hasn't been rerun on Kaggle yet — don't commit stale results.
@@ -167,6 +167,53 @@ notebook (see submission-method deviation above) — but kernels should still
 declare every dependency explicitly in their own setup cell (see the
 `IS_KAGGLE` pip-install block) rather than relying on whatever happens to
 be preinstalled in Kaggle's base image.
+
+### What belongs in notebook markdown, and what belongs in `docs/`
+
+Notebooks are published/run on Kaggle and read by whoever looks at the
+kernel page — they should read like a focused write-up of *this
+experiment*: what the code does, why (briefly), and what it found. They
+are not the place for project history, process, or deployment mechanics.
+`docs/` is the single source of truth for all of that; notebooks link out
+to it rather than duplicating it.
+
+**Decision rule**: would this sentence still be true, unedited, if the
+exact same code were rerun tomorrow? If yes — it's an approach or a
+finding, keep it in the notebook. If no — it's a fact about *this specific
+run* (a date, a kernel version, "resolved", "currently re-running",
+compute-budget arithmetic, deployment status) — it belongs in
+`docs/4_experiments.md` or `docs/5_submissions.md` instead, not the
+notebook.
+
+Keep in notebook markdown:
+- What each section's code does and why, at the level of technique/method
+  (e.g. "bounded gap closing via a physical-space Hungarian assignment") —
+  this is the approach, not process.
+- A short **Insight** cell after a result: the direct finding from that
+  cell's output (direction, magnitude, what it implies) — factual and
+  timeless, not "resolved on `<date>`" or "confirmed on kernel `v20`".
+- Config values with a one-line comment on *why* that value, pointing to
+  `docs/` for the backing analysis rather than repeating its numbers.
+
+Move to `docs/` instead:
+- Roadmap, priorities, "what to try next" → `3_strategy.md`.
+- Full experiment tables, multiple-run comparisons, sample-size/runtime
+  reasoning → `4_experiments.md`.
+- Submission history, kernel versions, dates, deployment/"is this
+  submitted" status → `5_submissions.md`.
+- How to run/push the notebook on Kaggle (which script, which dataset
+  mounts) → this file, "Pushing Notebooks To Kaggle" below.
+- Competition mechanics (Code Competition rules, submission method) →
+  `1_instructions.md`.
+- Why our own code is organized a certain way (e.g. `scripts/` vs `src/`)
+  → this file, "Deviations From The Master Standard" above.
+
+This was a real cleanup, not just a hypothetical: `02_baseline_modeling.ipynb`
+and `01_eda.ipynb` both originally had a closing "Findings / limitations /
+next experiment" section and inline notes like "kernel `tuannm3812/biohub-eda`
+v8, 2026-07-22" — all of it already duplicated in `docs/`, so it was removed
+from the notebooks entirely rather than kept as a second copy that could
+drift out of sync.
 
 ## Plot Style
 
