@@ -26,8 +26,8 @@ Submitted as-is: `docs/5_submissions.md` #1, public **0.810**.
 
 Also notable across #1–#4: **division_jaccard was 0 in every condition** —
 this checkpoint isn't getting any division credit at all, independent of
-repair. Either a genuinely hard signal to recover, or a configuration
-issue — not yet investigated (`docs/3_strategy.md` roadmap).
+repair. Root-caused below (`## Division over-prediction`) — not a hard or
+rare signal, but massive over-prediction.
 
 Full write-up of the root cause and fix: `02_baseline_modeling.ipynb`
 section 2's finding cell.
@@ -128,3 +128,43 @@ just isn't required to explain *this* one. No new submission needed:
 reverse the earlier (wrong) conclusion. Use at least this sample size for
 any future `DET_THRESHOLD`/`ILP_*_WEIGHT` candidate selection, and still
 confirm the winner with a real submission before fully trusting it.
+
+## Division over-prediction
+
+`docs/3_strategy.md` roadmap step 7. Every experiment above shows
+`division_jaccard=0.0000` regardless of config; the working assumption had
+been genuine rarity (`01_eda.ipynb`: 1 division / 1,000 combined train
+timepoints). Checked directly, 2026-07-23, by reading the raw (pre-repair)
+`.geff` predictions already saved from the DET_THRESHOLD re-sweep's 60-video
+val fold (kernel v20's last candidate, `DET_THRESHOLD=0.99`) — no new
+Kaggle run needed, just local analysis of files already downloaded:
+
+| | Value |
+|---|---:|
+| Candidate forks (nodes with ≥2 outgoing edges), 60 val videos | **690** |
+| Expected true divisions (EDA rate × 6,000 timepoints) | ~6 |
+| Over-prediction factor | **~115x** |
+| True positives recovered (any run, ever) | **0** |
+| Daughter-pair distance: median / 10th–90th pct (µm) | 5.1 / 3.6–8.1 |
+| Candidate-fork rate: `44b6_*` videos vs `6bba_*` videos | 0.230 vs 0.726 per 1,000 nodes |
+
+**Conclusion**: this is not under-detection of a rare-but-real signal —
+it's the model producing hundreds of forks that don't correlate with real
+division events (TP=0 despite 690 candidates). Daughter-pair distances are
+geometrically plausible (not an obvious duplicate-detection artifact), and
+the ~3x rate difference between the two video-ID prefixes isn't large
+enough on its own to explain a 115x excess over the expected count. Two
+untested hypotheses: (a) the pretrained checkpoint isn't trained to
+convergence and its fork/division channel is particularly under-trained;
+(b) `ILP_DIVISION_WEIGHT=1.0` is too permissive relative to
+`ILP_EDGE_WEIGHT=-1.0`.
+
+**Why this might still be worth fixing even though division_jaccard is
+already 0 either way**: a spurious second outgoing edge from a fork is
+itself a candidate edge-level false positive under the edge Jaccard's own
+matching rules (`docs/metrics.md`) — separate from the division metric
+entirely. If even a fraction of the 690 candidates are edge-level FPs,
+suppressing them could improve `edge_jaccard` directly. **Not yet run**:
+a local `ILP_DIVISION_WEIGHT` sweep at the 60-video sample, comparing
+`edge_jaccard` (not `division_jaccard`, which stays 0 regardless) against
+the current default.
