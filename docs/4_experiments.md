@@ -102,3 +102,29 @@ small sample) is now the leading explanation for the miss, though the
 underlying detection-volume/over-prediction-penalty interaction from
 hypothesis 2 may still contribute even without a calibration signal to
 exploit it directly. See `docs/2_eda_insights.md` and `docs/3_strategy.md`.
+
+**Resolution, 2026-07-23**: re-ran the sweep at 3x the sample size (60
+val videos, up from 19; kernel `tuannm3812/biohub-baseline-modeling` v20),
+narrowed to just the two candidates that matter:
+
+| DET_THRESHOLD | n=19 repaired score | n=60 repaired score |
+|---:|---:|---:|
+| 0.90 | **0.8121** | 0.8246 |
+| 0.99 | 0.8096 | **0.8268** |
+| Δ (0.90 − 0.99) | **+0.0025** (0.90 "wins") | **-0.0022** (0.99 wins) |
+
+**The ranking flipped.** At 3x the sample, `DET_THRESHOLD=0.99` comes out
+ahead — consistent with the real submission's confirmed 0.817 and with
+0.99 remaining the notebook default. This settles the question: the
+original 19-video sweep's "0.90 wins" signal was small-sample noise
+(hypothesis 1, multiple-comparisons risk), not a real train-set effect
+that then failed to transfer to test. No distribution-shift explanation
+(hypothesis 2) is needed to account for the miss, though it may still be
+a real, separate consideration for future count-affecting changes — it
+just isn't required to explain *this* one. No new submission needed:
+0.99 was already the deployed default. **Methodological update**: a
+19-video (~10%) held-out sample is not large enough to trust for
+*selecting* among close candidates — 60 videos (~30%) was enough to
+reverse the earlier (wrong) conclusion. Use at least this sample size for
+any future `DET_THRESHOLD`/`ILP_*_WEIGHT` candidate selection, and still
+confirm the winner with a real submission before fully trusting it.

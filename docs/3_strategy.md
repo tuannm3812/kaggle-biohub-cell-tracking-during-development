@@ -97,14 +97,16 @@ validated.
   (seshurajup, jirkaborovec) that hand-roll their own proxy scorer. It
   correctly predicted the graph-repair fix's leaderboard gain **twice**
   (isolated techniques and combined, `docs/4_experiments.md`), but then
-  missed the `DET_THRESHOLD` sweep's real direction entirely (predicted
-  +0.0025, got -0.022 — see `docs/4_experiments.md`'s analysis). Working
-  hypothesis: it's reliable for a single, mechanism-backed hypothesis
-  test, but *selecting* among several candidates for a parameter that
-  controls total detection volume (which the Adjusted Edge Jaccard's
-  over-prediction penalty is directly sensitive to) is a different, riskier
-  use of the same tool. Treat future threshold/`ILP_*_WEIGHT` sweeps as
-  hypotheses to confirm with a submission, not settled conclusions.
+  missed the `DET_THRESHOLD` sweep's real direction entirely at a 19-video
+  sample (predicted +0.0025, got -0.022) — re-running at 60 videos
+  **reversed the ranking** and matched the real submission's winner,
+  confirming the tool itself wasn't wrong, the *sample size* was
+  (`docs/4_experiments.md`). Settled conclusion: it's reliable for a
+  single, mechanism-backed hypothesis test even at a small sample, but
+  *selecting* among several close candidates needs a substantially larger
+  held-out set (≥60 videos, not 19) before the "best" one means anything —
+  and should still be confirmed with a real submission before fully
+  trusting it.
 - **Physical-µm gating is already handled** by the vendored baseline
   (`pool_kernel_um`, ILP distance weights) — the anisotropy correction
   every classical notebook implements by hand is already built in.
@@ -163,18 +165,17 @@ investing further in division-recovery post-processing).
    session after two correct predictions from the same tool. Reverted to
    `DET_THRESHOLD=0.99`. Full analysis: `docs/4_experiments.md`.
 5. ~~Understand why the sweep missed before trying `ILP_*_WEIGHT` the same
-   way~~ — **partially resolved**. Of the two candidate explanations in
-   `docs/4_experiments.md`, the count-budget one specifically depended on
-   calibrating against `estimated_number_of_nodes` per test video — now
-   ruled out (step 6, below: confirmed absent on all 4 test videos). The
-   multiple-comparisons hypothesis (picking the empirical best of 4
-   candidates on one small 19-video sample) is now the leading
-   explanation, though not independently confirmed — the underlying
-   detection-volume/over-prediction-penalty interaction from hypothesis 2
-   could still contribute even without a per-video calibration signal to
-   exploit it. Any future threshold or `ILP_*_WEIGHT` sweep should
-   validate on a larger or stratified sample and treat a "best" candidate
-   as a hypothesis to confirm with a real submission, not a conclusion.
+   way~~ — **resolved**. Re-ran the sweep at 3x the sample (60 val videos,
+   narrowed to `[0.90, 0.99]`, kernel v20): **the ranking flipped** — 0.99
+   now wins (repaired score 0.8268 vs 0.8246), reversing the 19-video
+   sample's "0.90 wins" (0.8121 vs 0.8096). The original signal was
+   small-sample noise (multiple-comparisons risk), confirmed rather than
+   just hypothesized — no distribution-shift explanation is needed to
+   account for the miss. 0.99 remains the default; no new submission
+   needed. Full numbers: `docs/4_experiments.md`. **Going forward**: use
+   at least a 60-video (~30%) sample, not the original 19 (~10%), for any
+   future threshold/`ILP_*_WEIGHT` candidate selection, and still confirm
+   the winner with a real submission before trusting it fully.
 6. ~~Read `estimated_number_of_nodes` from geff metadata in
    `01_eda.ipynb` and check it against `test/`~~ — done,
    `docs/2_eda_insights.md`: present on 10/10 surveyed train videos,

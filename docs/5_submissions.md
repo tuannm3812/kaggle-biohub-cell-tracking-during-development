@@ -22,7 +22,10 @@ submission live in `docs/4_experiments.md` instead.
 - **#3 is a real miss**, not just a smaller-than-predicted gain: local
   validation predicted +0.0025, the real result was -0.022 relative to #2,
   and #3 even undercuts #1. `DET_THRESHOLD` reverted to 0.99 (#2's
-  config) as the current default. See `docs/4_experiments.md` and
-  `docs/3_strategy.md` for the analysis of why this one didn't transfer.
+  config) as the current default. **Root cause confirmed 2026-07-23**: a
+  3x-larger re-validation (60 videos vs the original 19) reversed the
+  local ranking in favor of 0.99, matching the real result — the original
+  sweep was small-sample noise, not a train/test distribution effect. See
+  `docs/4_experiments.md` and `docs/3_strategy.md`.
 - Current best: **0.817** (submission #2). See `docs/3_strategy.md` for the
   prioritized roadmap toward the next one.

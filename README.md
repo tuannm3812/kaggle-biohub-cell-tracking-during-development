@@ -6,55 +6,102 @@
 
 <p align="center">
   <a href="https://www.kaggle.com/competitions/biohub-cell-tracking-during-development"><img alt="Kaggle Competition" src="https://img.shields.io/badge/Kaggle-Biohub%20Cell%20Tracking-20BEFF?logo=kaggle&logoColor=white"></a>
-  <a href="docs/3_strategy.md"><img alt="Public LB Score" src="https://img.shields.io/badge/Public%20LB-0.817-success"></a>
+  <a href="docs/5_submissions.md"><img alt="Public LB Score" src="https://img.shields.io/badge/Public%20LB-0.817-success"></a>
   <a href="pyproject.toml"><img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white"></a>
+  <a href="#setup"><img alt="Tests" src="https://img.shields.io/badge/tests-107%20passing-brightgreen"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-BSD--3--Clause-lightgrey"></a>
 </p>
 
 Personal entry for the Kaggle competition
 [Biohub – Cell Tracking During Development](https://www.kaggle.com/competitions/biohub-cell-tracking-during-development):
-detecting and linking cells in 3D through time in zebrafish embryo
-microscopy videos, scored on sparse ground-truth edge and division
-matching. Full task, data format, and metric details:
-[`docs/1_instructions.md`](docs/1_instructions.md).
+detect and link every cell nucleus, in 3D, through 100 timepoints of
+light-sheet microscopy of a developing zebrafish embryo — including cell
+divisions — from **199 training videos with sparse ground truth and only
+4 held-out test videos**. Scored on edge-matching (Adjusted Jaccard) plus
+division-matching against the official metric. Full task, data format,
+and scoring details: [`docs/1_instructions.md`](docs/1_instructions.md).
+
+## Results at a glance
+
+| | |
+|---|---|
+| **Public leaderboard** | **0.817**, up from an initial 0.810 |
+| **Approach** | Learned detect → link (3D U-Net + transformer + ILP) → deterministic graph repair |
+| **Full history** | [`docs/5_submissions.md`](docs/5_submissions.md) (submissions) · [`docs/4_experiments.md`](docs/4_experiments.md) (local validation) |
+
+Two things this project surfaced that a naive run wouldn't have caught:
+
+- **A graph-repair bug that looked like a regression.** The first
+  gap-closing implementation *dropped* the local score (edge Jaccard
+  -0.0133) because it bridged dangling tracks with edges spanning
+  multiple frames — something no ground-truth edge can ever match.
+  Root-caused, fixed by inserting interpolated intermediate nodes
+  instead, and re-validated: a genuine **+0.007** real leaderboard gain
+  once both techniques worked correctly
+  ([`docs/4_experiments.md`](docs/4_experiments.md)).
+- **A local-validation "win" that didn't survive contact with the real
+  test set.** A `DET_THRESHOLD` sweep predicted a further +0.0025 gain on
+  a 19-video held-out sample; the real submission scored **0.795**, a
+  -0.022 regression. Rather than shrug it off, EDA was used to rule out
+  one hypothesis directly — confirming the count-calibration signal
+  several top public solutions rely on (`estimated_number_of_nodes`)
+  simply isn't available on the real test set (0/4 videos) — and a
+  larger re-validation sample is now testing the other
+  (multiple-comparisons risk on a small held-out set). See
+  [`docs/3_strategy.md`](docs/3_strategy.md) for the live investigation.
 
 ## Approach
 
-A learned detect → link pipeline: the competition's official baseline
-architecture (`TemporalUNet3D` center detector + cross-attention node
-transformer + ILP graph optimizer — see [`NOTICE.md`](NOTICE.md) for
-attribution), plus a deterministic graph-repair stage (short-track
-pruning, bounded gap recovery via interpolated intermediate nodes) —
-every top-scoring public solution reviewed converges on that shape. A
-first version of the repair stage regressed the score (edge Jaccard
--0.0133) due to a structural bug; fixed and re-validated, it's now a
-genuine +0.007 leaderboard gain
-([`docs/4_experiments.md`](docs/4_experiments.md) for the full story). See
-[`docs/3_strategy.md`](docs/3_strategy.md) for the competitive-landscape
-analysis behind this approach.
+```
+raw video (T, Z, Y, X)
+      │
+      ▼
+ 3D U-Net center detector  ──►  candidate cell centers per frame
+      │
+      ▼
+ cross-attention node transformer  ──►  pairwise edge scores
+      │
+      ▼
+ ILP graph optimizer  ──►  globally consistent detect+link graph
+      │
+      ▼
+ deterministic graph repair  ──►  short-track pruning + bounded gap
+      │                            closing (interpolated intermediate
+      │                            nodes, not multi-frame edges)
+      ▼
+ submission.csv
+```
 
-## Current best result
+The detector/transformer/ILP stack is the competition's official baseline
+architecture (`TemporalUNet3D` + node transformer + ILP — see
+[`NOTICE.md`](NOTICE.md) for attribution); the graph-repair stage on top
+is this project's own contribution. Every top-scoring public solution
+reviewed — learned or purely classical — converges on this same
+detect → link → repair shape, which is the central finding behind the
+whole strategy; see [`docs/3_strategy.md`](docs/3_strategy.md) for the
+competitive-landscape analysis.
 
-**Public leaderboard: 0.817**, up from an initial 0.810 — full submission
-history in [`docs/5_submissions.md`](docs/5_submissions.md), full
-experiment-by-experiment numbers behind it in
-[`docs/4_experiments.md`](docs/4_experiments.md). This is a genuine Code
-Competition submission: the kernel runs with internet disabled and submits
-via the Kaggle API's `competition_submit_code`, not a file upload (see
-[`docs/1_instructions.md`](docs/1_instructions.md)). Sits close to the
-learned+repair public references' ~0.897 (`docs/3_strategy.md`). See
-[`docs/3_strategy.md`](docs/3_strategy.md) for the prioritized
-next-experiment roadmap toward closing that remaining gap.
+## Documentation
+
+Findings, decisions, and history live in `docs/`, not scattered across
+notebook comments — notebooks stay focused on the experiment itself.
+
+| Doc | Contents |
+|---|---|
+| [`0_coding_standards.md`](docs/0_coding_standards.md) | Project conventions, deviations from the personal master standard, troubleshooting log |
+| [`1_instructions.md`](docs/1_instructions.md) | Competition spec, data format, submission method |
+| [`2_eda_insights.md`](docs/2_eda_insights.md) | Dataset scale, sparsity, count-calibration, and division-rarity findings, with embedded charts |
+| [`3_strategy.md`](docs/3_strategy.md) | Competitive-landscape analysis and the prioritized, living roadmap |
+| [`4_experiments.md`](docs/4_experiments.md) | Every local validation run, whether or not it became a submission |
+| [`5_submissions.md`](docs/5_submissions.md) | Every real Kaggle submission — the ground-truth leaderboard record |
+| [`metrics.md`](docs/metrics.md) | Vendored official scoring spec (Adjusted Edge Jaccard + Division Jaccard) |
 
 ## Repository layout
 
 - [`notebooks/`](notebooks/) — the executable workflow: `01_eda.ipynb`,
   `02_baseline_modeling.ipynb`, plus `notebooks/kernels/<name>/` holding
   each notebook's Kaggle `kernel-metadata.json`.
-- [`docs/`](docs/) — `0` project standards, `1` competition instructions,
-  `2` EDA findings, `3` strategy/roadmap, `4` experiment log,
-  `5` submission log, plus the vendored `metrics.md` (official scoring
-  spec).
+- [`docs/`](docs/) — see the table above.
 - [`src/tracking_cellmot/`](src/tracking_cellmot/) — vendored, tested I/O +
   metrics + model library from the official baseline (107 tests).
   Not executed directly on Kaggle (kernels mount a public pretrained-model
@@ -77,3 +124,12 @@ that touches real data runs on Kaggle Kernels, where it's already mounted.
 See [`docs/0_coding_standards.md`](docs/0_coding_standards.md) for
 project-specific conventions and deliberate deviations from the personal
 master standard.
+
+## Attribution
+
+The detection/linking architecture and core I/O/metrics library are
+vendored from the official competition baseline
+([royerlab/kaggle-cell-tracking-competition](https://github.com/royerlab/kaggle-cell-tracking-competition),
+BSD 3-Clause) — see [`NOTICE.md`](NOTICE.md) for the full attribution and
+[`docs/0_coding_standards.md`](docs/0_coding_standards.md) for what was
+built on top and why.
