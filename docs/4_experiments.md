@@ -159,8 +159,6 @@ convergence and its fork/division channel is particularly under-trained;
 (b) `ILP_DIVISION_WEIGHT=1.0` is too permissive relative to
 `ILP_EDGE_WEIGHT=-1.0`.
 
-## Division over-prediction
-
 **Why this might still be worth fixing even though division_jaccard is
 already 0 either way**: a spurious second outgoing edge from a fork is
 itself a candidate edge-level false positive under the edge Jaccard's own
@@ -228,3 +226,39 @@ trajectory smoothing) that reuse the existing `VALIDATE_ON_TRAIN_FOLD`
 infrastructure without any training cost. Revisit if a substantially
 cheaper training setup emerges (a bigger accelerator, mixed precision, or
 a much smaller epoch count with early stopping).
+
+## Trajectory smoothing
+
+`docs/3_strategy.md` roadmap step 8's redirect. Detected centroids carry
+per-frame noise independent of any linking mistake, and the edge metric
+only matches within a 7 µm centroid distance (`docs/metrics.md`) — a
+correctly-linked node can still miss that threshold on position alone.
+`smooth_trajectories` (`02_baseline_modeling.ipynb` section 2) locally
+line-fits each node's z/y/x against t over up to `SMOOTH_WINDOW=2` steps
+of unambiguous (single-parent/child) track neighbors, changing only
+coordinates — topology is untouched.
+
+Verified against synthetic data before ever touching Kaggle (reduces MSE
+against a known-true line under noise; leaves an isolated node
+unchanged; correctly avoids cross-contamination between daughter branches
+at a division point). A/B-tested on Kaggle at the confirmed 60-video
+sample (kernel v24), predicting **once** and comparing
+`repair_graph(..., smooth=False/True)` on the same predictions — smoothing
+only post-processes the graph, so it doesn't need a second predict pass
+the way `DET_THRESHOLD`/`ILP_DIVISION_WEIGHT` did:
+
+| | edge_jaccard | division_jaccard | score |
+|---|---:|---:|---:|
+| `smooth=False` (previous default) | 0.8268 | 0.0000 | 0.8268 |
+| `smooth=True` | **0.8391** | 0.0000 | **0.8391** |
+| Δ | **+0.0123** | — | **+0.0123** |
+
+**A real, substantial gain** — nearly double the graph-repair fix's
+validated +0.0065 (`docs/5_submissions.md` #2, which mapped to a real
++0.007). This is a single hypothesis test at a pre-committed
+`SMOOTH_WINDOW=2` (not a multi-candidate sweep), run at the 60-video
+sample already confirmed reliable for this kind of test
+(`docs/3_strategy.md`), so no additional multiple-comparisons caution
+applies here the way it did for `DET_THRESHOLD`. `SMOOTH_TRAJECTORIES`
+set to `True` as the new default. **Not yet submitted** — see
+`docs/5_submissions.md` for whether/when this gets a real confirmation.

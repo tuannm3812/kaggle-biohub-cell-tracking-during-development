@@ -59,10 +59,12 @@ validated.
    that hurt the Adjusted Edge Jaccard's node-count penalty more than
    they help recall. **Implemented and confirmed working** (roadmap step
    3) — see `docs/4_experiments.md`'s Graph repair section.
-4. **Trajectory smoothing.** Line-fit (local linear regression over a
-   small window, e.g. `win=2`) or velocity-blended smoothing of node
+4. ~~**Trajectory smoothing.**~~ Local line-fit (`win=2`) of node
    coordinates post-linking — cheap, doesn't touch topology, tightens
-   centroid-distance matching against GT.
+   centroid-distance matching against GT. **Implemented and confirmed
+   working** (roadmap step 8): a real **+0.0123 edge_jaccard** at the
+   60-video sample, see `docs/4_experiments.md`'s Trajectory smoothing
+   section.
 5. ~~Count calibration against `estimated_number_of_nodes`~~ — **ruled
    out**: confirmed present on 10/10 surveyed train videos but **0/4 real
    test videos** (`01_eda.ipynb` section 4, `docs/2_eda_insights.md`) —
@@ -139,11 +141,22 @@ validated.
    ~179-video train fold costs ~2.2 hours; the baseline author's own
    50-epoch recipe would take ~110 hours (~4.6 days), and even 3 epochs
    consumes most of a single Kaggle GPU session. Not pursuing full
-   training now. **Next**: motion-aware relinking (compare against ILP's
-   implicit linking directly) or trajectory smoothing — both reuse
-   `VALIDATE_ON_TRAIN_FOLD` with no training cost. D4 test-time
-   augmentation remains a later option (it multiplies *inference* cost
-   ~8x, not training cost, so it's unaffected by this finding).
+   training now.
+9. ~~Trajectory smoothing~~ — **done, a real gain**: local line-fit
+   (`SMOOTH_WINDOW=2`) of node coordinates post-repair, validated against
+   synthetic data before Kaggle, then A/B-tested at the 60-video sample:
+   **edge_jaccard 0.8268 → 0.8391 (+0.0123)**, roughly double the
+   graph-repair fix's validated gain. `SMOOTH_TRAJECTORIES` now defaults
+   to `True`. Full numbers: `docs/4_experiments.md`. **Not yet submitted**
+   — confirm with a real submission before treating this as settled,
+   matching the standing lesson from the `DET_THRESHOLD` miss (a single
+   hypothesis test at a robust sample size is a strong signal, not a
+   guarantee).
+10. Motion-aware relinking (compare against ILP's implicit linking
+    directly) remains the next cheap option with no training cost. D4
+    test-time augmentation is a later option (it multiplies *inference*
+    cost ~8x, not training cost, so it's unaffected by the training
+    timing finding above).
 
 ## Attribution
 
