@@ -1,8 +1,8 @@
 # Strategy
 
 Synthesized 2026-07-21 from reading six public reference notebooks (source
-pulled via `kaggle kernels pull`, not fetched by URL — see "Kaggle Access
-Troubleshooting" in `docs/0_coding_standards.md`) plus our own first
+pulled via `kaggle kernels pull`, not fetched by URL — see
+`docs/6_kaggle_troubleshooting.md`) plus our own first
 successful runs (`docs/2_eda_insights.md`). Kaggle competition/code pages
 aren't fetchable directly, so scores quoted below are the notebooks'
 *own stated* LB numbers (titles, intro cells) — not independently verified

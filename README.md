@@ -29,7 +29,7 @@ and scoring details: [`docs/1_instructions.md`](docs/1_instructions.md).
 | **Approach** | Learned detect → link (3D U-Net + transformer + ILP) → deterministic graph repair |
 | **Full history** | [`docs/5_submissions.md`](docs/5_submissions.md) (submissions) · [`docs/4_experiments.md`](docs/4_experiments.md) (local validation) |
 
-Two things this project surfaced that a naive run wouldn't have caught:
+Three things this project surfaced that a naive run wouldn't have caught:
 
 - **A graph-repair bug that looked like a regression.** The first
   gap-closing implementation *dropped* the local score (edge Jaccard
@@ -40,15 +40,23 @@ Two things this project surfaced that a naive run wouldn't have caught:
   once both techniques worked correctly
   ([`docs/4_experiments.md`](docs/4_experiments.md)).
 - **A local-validation "win" that didn't survive contact with the real
-  test set.** A `DET_THRESHOLD` sweep predicted a further +0.0025 gain on
-  a 19-video held-out sample; the real submission scored **0.795**, a
-  -0.022 regression. Rather than shrug it off, EDA was used to rule out
-  one hypothesis directly — confirming the count-calibration signal
-  several top public solutions rely on (`estimated_number_of_nodes`)
-  simply isn't available on the real test set (0/4 videos) — and a
-  larger re-validation sample is now testing the other
-  (multiple-comparisons risk on a small held-out set). See
-  [`docs/3_strategy.md`](docs/3_strategy.md) for the live investigation.
+  test set — and why.** A `DET_THRESHOLD` sweep predicted a further
+  +0.0025 gain on a 19-video held-out sample; the real submission scored
+  **0.795**, a -0.022 regression. Re-validating at 3x the sample size
+  (60 videos) **reversed the ranking**, confirming the original signal
+  was small-sample noise (a multiple-comparisons risk), not a real
+  train/test distribution effect — the confirmed default (0.99) was
+  right all along. See [`docs/4_experiments.md`](docs/4_experiments.md)
+  for the full numbers.
+- **A ~115x over-prediction hiding behind a "genuinely rare" signal.**
+  `division_jaccard` scored exactly 0 in every experiment, initially
+  read as the ground truth's divisions simply being too rare to recover.
+  Direct inspection of the raw predictions found the model actually
+  predicts **690 candidate cell divisions** across a 60-video sample —
+  against an estimated ~6 real ones — with **zero** ever landing
+  correctly. Not under-detection; over-prediction with no signal in it.
+  See [`docs/4_experiments.md`](docs/4_experiments.md) for the analysis
+  and the follow-up `ILP_DIVISION_WEIGHT` sweep it motivated.
 
 ## Approach
 
@@ -88,12 +96,13 @@ notebook comments — notebooks stay focused on the experiment itself.
 
 | Doc | Contents |
 |---|---|
-| [`0_coding_standards.md`](docs/0_coding_standards.md) | Project conventions, deviations from the personal master standard, troubleshooting log |
+| [`0_coding_standards.md`](docs/0_coding_standards.md) | Project conventions and deviations from the personal master standard |
 | [`1_instructions.md`](docs/1_instructions.md) | Competition spec, data format, submission method |
 | [`2_eda_insights.md`](docs/2_eda_insights.md) | Dataset scale, sparsity, count-calibration, and division-rarity findings, with embedded charts |
 | [`3_strategy.md`](docs/3_strategy.md) | Competitive-landscape analysis and the prioritized, living roadmap |
 | [`4_experiments.md`](docs/4_experiments.md) | Every local validation run, whether or not it became a submission |
 | [`5_submissions.md`](docs/5_submissions.md) | Every real Kaggle submission — the ground-truth leaderboard record |
+| [`6_kaggle_troubleshooting.md`](docs/6_kaggle_troubleshooting.md) | Reusable diagnosis for Kaggle CLI/API friction (auth, kernel push, offline installs, submission mechanics) |
 | [`metrics.md`](docs/metrics.md) | Vendored official scoring spec (Adjusted Edge Jaccard + Division Jaccard) |
 
 ## Repository layout

@@ -68,9 +68,9 @@ scoring runs are offline by design — confirmed by a second rejection
 the submission-source check above was fixed. `02_baseline_modeling.ipynb`'s
 Setup cell installs every dependency from the `cellmot-baseline-artifacts`
 dataset's bundled `wheels/` via `pip install --no-index --find-links`
-instead of PyPI/git for this reason (see docs/0_coding_standards.md`'s
-"Kaggle Access Troubleshooting" for the numpy/polars pitfalls that surfaced
-along the way), and `kernel-metadata.json` sets `"enable_internet": false`.
+instead of PyPI/git for this reason (see `docs/6_kaggle_troubleshooting.md`
+for the numpy/polars pitfalls that surfaced along the way), and
+`kernel-metadata.json` sets `"enable_internet": false`.
 
 There's no raw `kaggle` CLI subcommand for the submission step itself, but
 it **is** scriptable via the `kaggle` Python package:
@@ -130,8 +130,8 @@ Dataset: `thibautgoldsborough/cellmot-baseline-artifacts`
 public inference notebook,
 [`thibautgoldsborough/unet-baseline-inference-submission`](https://www.kaggle.com/code/thibautgoldsborough/unet-baseline-inference-submission)
 (pulled via `kaggle kernels pull` 2026-07-21 to confirm the exact mount
-path and usage — not fetchable by URL, see "Kaggle Access Troubleshooting"
-in `docs/0_coding_standards.md`). Its own notes: `--use-ilp` scored
+path and usage — not fetchable by URL, see
+`docs/6_kaggle_troubleshooting.md`). Its own notes: `--use-ilp` scored
 ~0.73 → ~0.79 over the greedy linker; `--det-threshold 0.99` was the best
 of a sweep (GT is sparse so the detector is poorly calibrated). Not trained
 to convergence — a starting point, not a ceiling.
