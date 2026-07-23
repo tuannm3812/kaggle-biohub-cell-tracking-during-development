@@ -183,31 +183,19 @@ a real division.
    closes off any `DET_THRESHOLD` calibration approach built on this
    field — there's no per-test-video budget to calibrate against, only
    the loose train-vs-test node-count sanity check already noted above.
-7. ~~Investigate the division_jaccard=0 finding above~~ — **the "genuine
-   rarity" framing was wrong.** Inspected the raw (pre-repair) val-fold
-   `.geff` predictions directly (the 60-video kernel v20 run, no new
-   Kaggle run needed): the model predicts **690 candidate forks** (nodes
-   with ≥2 outgoing edges) across those 60 videos — against an
-   EDA-estimated true rate of ~1 division per 1,000 timepoints, i.e. only
-   ~6 expected in this fold. That's a ~115x over-prediction, and every
-   documented run still scored division_jaccard=0.0000 — meaning **none**
-   of those 690 candidate forks ever recovers a real division (TP=0).
-   This isn't under-detection of a rare signal, it's the model producing
-   forks essentially uncorrelated with real division events. Daughter-pair
-   distances (3–15 µm, median 5.1) are geometrically plausible, so it
-   isn't an obvious duplicate-detection artifact either. Two live
-   hypotheses, not yet distinguished: (a) the pretrained checkpoint isn't
-   trained to convergence (already noted below) and its fork/division
-   channel is particularly under-trained; (b) `ILP_DIVISION_WEIGHT=1.0`
-   is too permissive relative to `ILP_EDGE_WEIGHT=-1.0`, letting the ILP
-   solver accept marginal division edges too easily. **Next**: since
-   division_jaccard is already 0 regardless, this can only help by
-   removing edge-level false positives (a spurious second outgoing edge
-   is itself a candidate FP under the edge Jaccard's own rules, separate
-   from the division metric) — worth a local `ILP_DIVISION_WEIGHT` sweep
-   at the 60-video sample, measuring `edge_jaccard` (not division_jaccard)
-   as the outcome, before committing to seshurajup's more drastic
-   `allow_divisions: False`. Full numbers: `docs/4_experiments.md`.
+7. ~~Investigate the division_jaccard=0 finding above~~ — **closed out.**
+   The "genuine rarity" framing was wrong: raw val-fold predictions show
+   **690 candidate forks** across 60 videos against an EDA-estimated ~6
+   expected (~115x over-prediction), with **zero** ever recovering a real
+   division. But a follow-up `ILP_DIVISION_WEIGHT` sweep (`1.0` vs `10.0`,
+   60-video sample, kernel v21) found raising the cost enough to
+   eliminate every candidate fork (690 → 0) barely moves `edge_jaccard`
+   (-0.0001 raw, +0.0003 repaired — noise-level). The over-prediction is
+   real but **harmless to the score** — the edge Jaccard's own
+   "ignore forks with no local GT evidence" rule was already absorbing
+   almost all of it. `ILP_DIVISION_WEIGHT` stays at its default (`1.0`);
+   no further tuning here is worth the effort relative to the remaining
+   roadmap. Full numbers: `docs/4_experiments.md`.
 8. Consider motion-aware relinking (comparing against ILP directly, since
    ILP is already a stronger baseline than the two-pass Hungarian these
    techniques replace elsewhere), trajectory smoothing (seshurajup's

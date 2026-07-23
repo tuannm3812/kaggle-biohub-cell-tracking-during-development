@@ -164,7 +164,28 @@ already 0 either way**: a spurious second outgoing edge from a fork is
 itself a candidate edge-level false positive under the edge Jaccard's own
 matching rules (`docs/metrics.md`) — separate from the division metric
 entirely. If even a fraction of the 690 candidates are edge-level FPs,
-suppressing them could improve `edge_jaccard` directly. **Not yet run**:
-a local `ILP_DIVISION_WEIGHT` sweep at the 60-video sample, comparing
-`edge_jaccard` (not `division_jaccard`, which stays 0 regardless) against
-the current default.
+suppressing them could improve `edge_jaccard` directly.
+
+**Resolution, 2026-07-23**: ran the `ILP_DIVISION_WEIGHT` sweep at the
+same 60-video sample (kernel v21), `[1.0, 10.0]`:
+
+| ILP_DIVISION_WEIGHT | candidate forks | raw edge_jaccard | repaired edge_jaccard |
+|---:|---:|---:|---:|
+| 1.0 (default) | 690 | 0.8212 | 0.8268 |
+| 10.0 | **0** | 0.8211 | 0.8271 |
+
+**A higher division cost completely eliminates the spurious forks (690 →
+0), but `edge_jaccard` barely moves**: -0.0001 raw, +0.0003 repaired —
+both well within noise at this sample size (recall it took the full
+60-video sample just to detect the DET_THRESHOLD sweep's real ~0.002
+effect above). Conclusion: the over-predicted forks were essentially
+**harmless** to the score, not hidden false positives — the edge
+Jaccard's own "ignored if no local GT evidence" rule (`docs/metrics.md`)
+was already absorbing almost all of them, exactly as it's designed to for
+sparse ground truth. `ILP_DIVISION_WEIGHT` tuning is a dead end for score
+improvement; kept at the default (`1.0`, matching the baseline author's
+own setting) since there's no evidence to justify changing it, and no new
+submission needed. This closes out the division investigation
+(`docs/3_strategy.md` roadmap step 7) — the 690-fork over-prediction is a
+real, interesting model-quality observation, but not one worth spending
+further tuning effort on before higher-leverage roadmap items.
