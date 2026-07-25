@@ -260,5 +260,13 @@ validated +0.0065 (`docs/5_submissions.md` #2, which mapped to a real
 sample already confirmed reliable for this kind of test
 (`docs/3_strategy.md`), so no additional multiple-comparisons caution
 applies here the way it did for `DET_THRESHOLD`. `SMOOTH_TRAJECTORIES`
-set to `True` as the new default. **Not yet submitted** — see
-`docs/5_submissions.md` for whether/when this gets a real confirmation.
+set to `True` as the new default.
+
+**Confirmed, 2026-07-24**: submitted (`docs/5_submissions.md` #4, kernel
+v25) — public score **0.827**, up from 0.817, a real **+0.010**. The
+local +0.0123 prediction landed close, the same way the graph-repair
+fix's local prediction did (`docs/5_submissions.md` #2), not the way the
+`DET_THRESHOLD` sweep's did (`docs/5_submissions.md` #3). Consistent with
+the standing methodological lesson: a single, mechanism-backed hypothesis
+test at a robust sample size transfers; *selecting* among several
+candidates at too small a sample doesn't. New current best.

@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://www.kaggle.com/competitions/biohub-cell-tracking-during-development"><img alt="Kaggle Competition" src="https://img.shields.io/badge/Kaggle-Biohub%20Cell%20Tracking-20BEFF?logo=kaggle&logoColor=white"></a>
-  <a href="docs/5_submissions.md"><img alt="Public LB Score" src="https://img.shields.io/badge/Public%20LB-0.817-success"></a>
+  <a href="docs/5_submissions.md"><img alt="Public LB Score" src="https://img.shields.io/badge/Public%20LB-0.827-success"></a>
   <a href="pyproject.toml"><img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white"></a>
   <a href="#setup"><img alt="Tests" src="https://img.shields.io/badge/tests-107%20passing-brightgreen"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-BSD--3--Clause-lightgrey"></a>
@@ -25,12 +25,21 @@ and scoring details: [`docs/1_instructions.md`](docs/1_instructions.md).
 
 | | |
 |---|---|
-| **Public leaderboard** | **0.817**, up from an initial 0.810 |
+| **Public leaderboard** | **0.827**, up from an initial 0.810 |
 | **Approach** | Learned detect → link (3D U-Net + transformer + ILP) → deterministic graph repair |
 | **Full history** | [`docs/5_submissions.md`](docs/5_submissions.md) (submissions) · [`docs/4_experiments.md`](docs/4_experiments.md) (local validation) |
 
-Three things this project surfaced that a naive run wouldn't have caught:
+Four things this project surfaced that a naive run wouldn't have caught:
 
+- **Trajectory smoothing, verified before ever touching Kaggle.** Detected
+  centroids carry per-frame noise independent of any linking mistake, and
+  the metric only matches within a 7 µm centroid distance — so a locally
+  line-fit smoothing pass that never touches topology moved the needle
+  directly. Checked against synthetic data first (including a synthetic
+  cell-division fork, to confirm no cross-branch contamination), then
+  A/B-tested on Kaggle with a single predict pass: **+0.0123 edge Jaccard**
+  locally, confirmed by a real **+0.010** leaderboard gain once submitted
+  ([`docs/4_experiments.md`](docs/4_experiments.md)).
 - **A graph-repair bug that looked like a regression.** The first
   gap-closing implementation *dropped* the local score (edge Jaccard
   -0.0133) because it bridged dangling tracks with edges spanning
@@ -75,7 +84,8 @@ raw video (T, Z, Y, X)
       ▼
  deterministic graph repair  ──►  short-track pruning + bounded gap
       │                            closing (interpolated intermediate
-      │                            nodes, not multi-frame edges)
+      │                            nodes, not multi-frame edges) +
+      │                            trajectory smoothing (local line-fit)
       ▼
  submission.csv
 ```

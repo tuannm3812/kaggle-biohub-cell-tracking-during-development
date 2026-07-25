@@ -9,7 +9,8 @@ submission live in `docs/4_experiments.md` instead.
 |---|---|---|---|---|---:|---:|
 | 1 | 2026-07-21 | v13 | [54875176](https://www.kaggle.com/competitions/biohub-cell-tracking-during-development/submissions) | `unet_transformer` split_0 pretrained, ILP (`DET_THRESHOLD=0.99`), graph repair **off** | 0.810 | — |
 | 2 | 2026-07-22 | v17 | [54892941](https://www.kaggle.com/competitions/biohub-cell-tracking-during-development/submissions) | Same, graph repair **on** (short-track pruning + gap-closing, fixed multi-frame-edge bug — `docs/4_experiments.md` #1–#4) | 0.817 | +0.007 |
-| 3 | 2026-07-22 | v19 | [54899151](https://www.kaggle.com/competitions/biohub-cell-tracking-during-development/submissions) | Same as #2, `DET_THRESHOLD=0.90` (swept, `docs/4_experiments.md` sweep table) | **0.795** | **-0.022** |
+| 3 | 2026-07-22 | v19 | [54899151](https://www.kaggle.com/competitions/biohub-cell-tracking-during-development/submissions) | Same as #2, `DET_THRESHOLD=0.90` (swept, `docs/4_experiments.md` sweep table) | 0.795 | -0.022 |
+| 4 | 2026-07-24 | v25 | [54940041](https://www.kaggle.com/competitions/biohub-cell-tracking-during-development/submissions) | Same as #2, `SMOOTH_TRAJECTORIES=True` added (`SMOOTH_WINDOW=2`, `docs/4_experiments.md` Trajectory smoothing) | **0.827** | **+0.010** |
 
 ## Notes
 
@@ -27,5 +28,10 @@ submission live in `docs/4_experiments.md` instead.
   local ranking in favor of 0.99, matching the real result — the original
   sweep was small-sample noise, not a train/test distribution effect. See
   `docs/4_experiments.md` and `docs/3_strategy.md`.
-- Current best: **0.817** (submission #2). See `docs/3_strategy.md` for the
-  prioritized roadmap toward the next one.
+- **#4 confirms trajectory smoothing**: local validation predicted
+  +0.0123 edge_jaccard at the 60-video sample; the real +0.010 public
+  delta landed close, like #2's did — a single hypothesis test at a
+  robust sample size transferred correctly, unlike #3's multi-candidate
+  sweep at too small a sample. See `docs/4_experiments.md`.
+- Current best: **0.827** (submission #4). See `docs/3_strategy.md` for
+  the prioritized roadmap toward the next one.

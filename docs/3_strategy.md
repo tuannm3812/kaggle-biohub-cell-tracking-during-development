@@ -147,11 +147,9 @@ validated.
    synthetic data before Kaggle, then A/B-tested at the 60-video sample:
    **edge_jaccard 0.8268 → 0.8391 (+0.0123)**, roughly double the
    graph-repair fix's validated gain. `SMOOTH_TRAJECTORIES` now defaults
-   to `True`. Full numbers: `docs/4_experiments.md`. **Not yet submitted**
-   — confirm with a real submission before treating this as settled,
-   matching the standing lesson from the `DET_THRESHOLD` miss (a single
-   hypothesis test at a robust sample size is a strong signal, not a
-   guarantee).
+   to `True`. **Confirmed by a real submission**: public score
+   **0.827**, up from 0.817 (+0.010) — `docs/5_submissions.md` #4, new
+   current best. Full numbers: `docs/4_experiments.md`.
 10. Motion-aware relinking (compare against ILP's implicit linking
     directly) remains the next cheap option with no training cost. D4
     test-time augmentation is a later option (it multiplies *inference*
