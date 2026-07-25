@@ -38,13 +38,14 @@ validated.
 
 ## Concrete techniques worth adopting, in priority order
 
-1. **Motion-aware two-pass linking.** Pass 1: Hungarian assignment within a
-   tight gate (~6 µm) on velocity-extrapolated positions
-   (`pos + 0.5 * (pos_t - pos_{t-1})`, i.e. constant-velocity prediction).
-   Pass 2: remaining unmatched nodes, full gate (~8–10 µm), no motion
-   term. Universal across every notebook reviewed, ours included via ILP —
-   worth comparing our ILP's implicit linking against an explicit
-   motion-relink pass.
+1. ~~**Motion-aware linking.**~~ Applied the same constant-velocity
+   extrapolation idea (`pos_t + velocity`) to gap-closing specifically,
+   rather than reimplementing the classical notebooks' full two-pass
+   Hungarian linker from scratch — our ILP already does the equivalent
+   of their pass 1/2 globally. **Tested, no effect** (roadmap step 10):
+   ILP's linking and the short `GAP_MAX=2` window already leave little
+   room for this to matter. `docs/4_experiments.md` (Motion-aware gap
+   closing).
 2. ~~**Bounded gap recovery, two tiers.**~~ A "gap" pass closes 1-frame
    misses (a track's node is missing at exactly one timepoint); a
    stricter "gap2" pass separately handles 2-frame misses so a loose
@@ -150,11 +151,23 @@ validated.
    to `True`. **Confirmed by a real submission**: public score
    **0.827**, up from 0.817 (+0.010) — `docs/5_submissions.md` #4, new
    current best. Full numbers: `docs/4_experiments.md`.
-10. Motion-aware relinking (compare against ILP's implicit linking
-    directly) remains the next cheap option with no training cost. D4
-    test-time augmentation is a later option (it multiplies *inference*
-    cost ~8x, not training cost, so it's unaffected by the training
-    timing finding above).
+10. ~~Motion-aware gap closing~~ — **done, no effect**: extrapolating a
+    dangling end's own velocity (constant-velocity prediction) instead of
+    matching its raw last-known position, verified against synthetic
+    data first, then A/B-tested at the 60-video sample:
+    **edge_jaccard 0.8391 → 0.8385 (-0.0007)**, within noise. Confirms
+    the standing reasoning above — ILP's global linking and the short
+    `GAP_MAX=2` window leave little room for this specific failure mode
+    to matter. `CLOSE_GAPS_MOTION` stays off; no submission needed. Full
+    numbers: `docs/4_experiments.md`.
+11. D4 test-time augmentation is the remaining later-stage option (it
+    multiplies *inference* cost ~8x, not training cost, so it's
+    unaffected by the training timing finding above). No other cheap,
+    no-training-cost repair-stage ideas remain on the list reviewed from
+    public notebooks (`docs/3_strategy.md`'s "Concrete techniques"
+    section) — the next real lever is likely either D4 TTA or revisiting
+    training under a cheaper setup (`docs/4_experiments.md`'s Training
+    timing test).
 
 ## Attribution
 

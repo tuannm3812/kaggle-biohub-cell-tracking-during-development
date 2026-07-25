@@ -270,3 +270,39 @@ fix's local prediction did (`docs/5_submissions.md` #2), not the way the
 the standing methodological lesson: a single, mechanism-backed hypothesis
 test at a robust sample size transfers; *selecting* among several
 candidates at too small a sample doesn't. New current best.
+
+## Motion-aware gap closing
+
+`docs/3_strategy.md` roadmap step 10. Plain nearest-neighbor gap-closing
+assumes a dangling end's cell stayed roughly where it was last seen —
+under-serving a fast-moving cell, whose true continuation a few frames
+later could be farther away than a slower, unrelated cell nearby, so the
+naive match picks the wrong one. `close_gaps(..., use_motion=True)`
+(`02_baseline_modeling.ipynb` section 2) extrapolates each end's own
+recent velocity (from its single parent, a constant-velocity prediction)
+forward to the candidate's timepoint and matches against that instead.
+
+Verified against synthetic data before ever touching Kaggle: a regression
+test confirmed `use_motion=False` behaves identically to the prior
+`close_gaps` (no change to the already-confirmed default path), and a
+synthetic fast-moving-cell case confirmed `use_motion=True` correctly
+picks the velocity-consistent continuation over a nearer but
+motion-inconsistent decoy. A/B-tested on Kaggle at the 60-video sample
+(kernel v26), on top of the now-default `smooth=True`, with the same
+single-predict-pass pattern as trajectory smoothing:
+
+| | edge_jaccard | division_jaccard | score |
+|---|---:|---:|---:|
+| `motion=False` (current default) | **0.8391** | 0.0000 | **0.8391** |
+| `motion=True` | 0.8385 | 0.0000 | 0.8385 |
+| Δ | -0.0007 | — | -0.0007 |
+
+**No effect, if anything slightly negative** — well within noise (compare
+to the `ILP_DIVISION_WEIGHT` sweep's ±0.0001–0.0003 noise floor at this
+same sample size). Consistent with the standing reasoning
+(`docs/3_strategy.md`, "Things we're already doing right"): ILP already
+does global, flow-consistent linking, and `GAP_MAX=2` bounds any gap to
+just 1–2 frames, apparently not enough time for the naive-vs-motion
+distinction to matter much in this dataset. `CLOSE_GAPS_MOTION` stays at
+its default (`False`) — no evidence supports turning it on, and no
+submission needed.
