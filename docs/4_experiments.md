@@ -306,3 +306,38 @@ just 1–2 frames, apparently not enough time for the naive-vs-motion
 distinction to matter much in this dataset. `CLOSE_GAPS_MOTION` stays at
 its default (`False`) — no evidence supports turning it on, and no
 submission needed.
+
+## D4 detection TTA
+
+`docs/3_strategy.md` roadmap step 11. `predict_unet_transformer.py` already
+averaged detection logits over 4 views (identity + flip-X/Y/both — a Klein
+four-group) before this work; extended it to the full 8-element D4
+dihedral group of a square image by adding the 90°/270° rotation variants
+(each with and without a flip), on the reasoning that more independent
+views to average over should cancel more view-dependent detection noise,
+the same mechanism the existing 4-way default already relies on. Required
+modifying the vendored predict script, which only reaches Kaggle via our
+own published code (a private `tracking-cellmot-src` dataset — see
+`docs/0_coding_standards.md`), since the pretrained checkpoint's bundled
+`repo/` is the baseline author's own unmodified copy.
+
+Verified against synthetic data before ever touching Kaggle: all 8 D4
+transforms are pairwise distinct (no accidental group-element collision)
+and each round-trips exactly (forward then inverse reconstructs the
+original tensor). A/B-tested on Kaggle at the 60-video sample (kernel
+v27) — this needed **two full predict passes**, unlike the repair-stage
+techniques above, since TTA changes the detected node positions
+themselves rather than post-processing a fixed prediction:
+
+| | edge_jaccard | division_jaccard | score |
+|---|---:|---:|---:|
+| `det_tta_mode="flips"` (current default) | **0.8391** | 0.0000 | **0.8391** |
+| `det_tta_mode="d4"` | 0.8381 | 0.0000 | 0.8381 |
+| Δ | -0.0010 | — | -0.0010 |
+
+**No effect, if anything slightly negative** — within the same noise
+floor as the `ILP_DIVISION_WEIGHT` and motion-aware gap-closing sweeps at
+this sample size. The extra 4 dihedral views apparently don't cancel any
+further detection noise beyond what the existing 4-way flip-only default
+already catches. `DET_TTA_MODE` stays at its default (`"flips"`) — no
+evidence supports switching to `"d4"`, and no submission needed.

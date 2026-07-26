@@ -83,11 +83,15 @@ validated.
    sister–sister distance, matching every notebook that implements it —
    e.g. pilkwang_blend's `SAFE_DIV_MAX_UM=4.66`,
    `SAFE_DIV_SISTER_MAX_UM=8.5`).
-7. **(Later, once the above is solid) D4 test-time augmentation.**
-   pilkwang_blend runs the detector and edge-transformer over all 8
-   dihedral XY transforms (identity + 3 rotations + flips), inverse-aligns
-   and averages before peak extraction / ILP. Free accuracy at ~8×
-   inference cost — worth it once cheaper wins are exhausted, not before.
+7. ~~**D4 test-time augmentation.**~~ pilkwang_blend runs the detector and
+   edge-transformer over all 8 dihedral XY transforms (identity + 3
+   rotations + flips), inverse-aligns and averages before peak extraction
+   / ILP. Implemented for detection only (extended our existing 4-way
+   flip-only TTA to the full 8-way group) — edge-transformer TTA would
+   need separate, harder coordinate-remapping work, not attempted.
+   **Tested, no effect** (roadmap step 11): the extra 4 dihedral views
+   don't cancel any further detection noise beyond the existing default.
+   `docs/4_experiments.md` (D4 detection TTA).
 
 ## Things we're already doing right (don't change)
 
@@ -160,14 +164,27 @@ validated.
     `GAP_MAX=2` window leave little room for this specific failure mode
     to matter. `CLOSE_GAPS_MOTION` stays off; no submission needed. Full
     numbers: `docs/4_experiments.md`.
-11. D4 test-time augmentation is the remaining later-stage option (it
-    multiplies *inference* cost ~8x, not training cost, so it's
-    unaffected by the training timing finding above). No other cheap,
-    no-training-cost repair-stage ideas remain on the list reviewed from
-    public notebooks (`docs/3_strategy.md`'s "Concrete techniques"
-    section) — the next real lever is likely either D4 TTA or revisiting
-    training under a cheaper setup (`docs/4_experiments.md`'s Training
-    timing test).
+11. ~~D4 detection test-time augmentation~~ — **done, no effect**:
+    extended the existing 4-way flip-only detection TTA to the full 8-way
+    D4 dihedral group (adding 90°/270° rotations), verified against
+    synthetic data first (all 8 transforms pairwise distinct, each
+    round-trips exactly), then A/B-tested at the 60-video sample (two
+    full predict passes, since TTA changes detected positions, not just
+    post-processing): **edge_jaccard 0.8391 → 0.8381 (-0.0010)**, within
+    noise. Required publishing our own code as a private Kaggle dataset
+    (`tracking-cellmot-src`, `docs/0_coding_standards.md`) since this
+    needed a change to the vendored predict script. `DET_TTA_MODE` stays
+    at `"flips"`; no submission needed. Full numbers:
+    `docs/4_experiments.md`.
+12. No further cheap, no-training-cost repair/detection-stage ideas
+    remain on the list reviewed from public notebooks (`docs/3_strategy.md`'s
+    "Concrete techniques" section) — every one of them has now been
+    either adopted (graph repair, trajectory smoothing) or tested and
+    ruled out (motion-aware gap closing, D4 TTA, count calibration).
+    The next real lever, if any, is revisiting training under a cheaper
+    setup than the bounded test already ruled out (`docs/4_experiments.md`'s
+    Training timing test) — otherwise the repair-stage exploration this
+    roadmap tracked is effectively exhausted.
 
 ## Attribution
 
