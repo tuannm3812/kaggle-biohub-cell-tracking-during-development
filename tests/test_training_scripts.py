@@ -30,7 +30,7 @@ _TEST_CONFIG = {
     "pool_kernel_um": 5.0,
     "predict": {
         "threshold": 0.5,
-        "det_tta": False,
+        "det_tta_mode": "off",
         "max_parents_per_node": 1,
         "max_children_per_node": 2,
         "use_ilp": False,

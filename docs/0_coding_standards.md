@@ -267,24 +267,35 @@ writable `/kaggle/working/repo`; `01_eda.ipynb` reads it directly (never
 writes predictions/weights, so the read-only mount is fine). Nothing to
 publish or version ourselves for this.
 
-This only holds while we're predicting with the public pretrained
-checkpoint (`USE_PRETRAINED = True`) rather than our own logic. Once we
-train a customized model, our own code needs to reach Kaggle too — publish
-it as a private dataset from the repo root and add
-`"tuannm3812/tracking-cellmot-src"` back to `dataset_sources`:
+This only holds while predicting with the public pretrained checkpoint's
+own unmodified code. As of the D4 TTA work (`docs/4_experiments.md`), the
+baseline kernel needs our own modified `predict_unet_transformer.py`, so
+`"tuannm3812/tracking-cellmot-src"` is back in `dataset_sources` (both
+datasets stay attached — weights still come from the artifacts dataset,
+only `src/`/`scripts/` come from ours;
+`notebooks/02_baseline_modeling.ipynb` section 1 mounts both separately).
 
-```bash
-uv run kaggle datasets init -p .                # first time -- recreates dataset-metadata.json
-uv run kaggle datasets create -p .              # first time
-uv run kaggle datasets version -p . -m "..."    # after any code change
-```
+Publish/refresh that dataset with `scripts/publish_code_dataset.sh
+<create|version "message">`, **not** a plain `kaggle datasets create/version
+-p .` from the repo root: confirmed empirically that this project's
+`kaggle-api` version does not honor `.kaggleignore` for directory (`-r zip`)
+uploads, so a first attempt run from the repo root silently uploaded a
+409MB `.venv/` and the full `.git/` history alongside `src/`/`scripts/`.
+The script stages only what the dataset actually needs (`src/`, `scripts/`,
+`LICENSE`, `NOTICE.md`) in a clean temp directory first, and always passes
+`-d` (delete-old-versions) so a bad upload doesn't linger as dead history.
 
-`dataset-metadata.json` and `.kaggleignore` (which excludes `.git`, `.venv`,
-local data/weights/predictions, etc. from the upload) were dropped
-2026-07-21 as unused dead weight — recreate them at that point rather than
-keeping them on standby indefinitely. Kernels are `is_private: true` here
-(unlike the tabular episode repos' public kernels) since this is a live,
-prize-money competition.
+`dataset-metadata.json` (title/id: `tracking-cellmot-src`) lives at the
+repo root and is read by the publish script; recreate it with `uv run
+kaggle datasets init -p .` if it's ever lost. Also note: `kaggle` 2.2.3
+raised a spurious `KaggleObject.from_dict() got an unexpected keyword
+argument 'token'` on some file uploads (files still uploaded successfully;
+only the final version/status call was affected) — `uv lock
+--upgrade-package kaggle` to 2.2.4 resolved it, worth trying first if
+`kaggle datasets`/`kernels` commands behave oddly.
+
+Kernels are `is_private: true` here (unlike the tabular episode repos'
+public kernels) since this is a live, prize-money competition.
 
 Reusable diagnosis for CLI/API friction encountered along the way:
 `docs/6_kaggle_troubleshooting.md`.

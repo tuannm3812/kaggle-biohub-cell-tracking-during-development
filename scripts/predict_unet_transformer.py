@@ -66,7 +66,13 @@ class PredictConfig:
     """
     # Detection
     det_threshold: float = 0.5
-    det_tta: bool = True  # flip-xy TTA for detection logits
+    # "off": no TTA. "flips": average logits over identity + the 3 flip-only
+    # symmetries (flip-X, flip-Y, flip-both -- a Klein four-group, excludes
+    # any 90/270 rotation). "d4": average over the full 8-element dihedral
+    # group of a square image (adds rot90/rot270, each with and without a
+    # flip) -- only valid when the in-plane (Y, X) frame is square, see
+    # _d4_forward.
+    det_tta_mode: str = "flips"
     pool_kernel_um: float = 3.0  # max-pool kernel size in µm for detection peak extraction
     # Edge filtering
     edge_activation: str = "softmax"  # "sigmoid" or "softmax"
@@ -293,6 +299,43 @@ def _detect_cells_pooled(
     return np.concatenate([t_col, coords], axis=1).astype(np.int16)
 
 
+# =============================================================================
+# Detection test-time augmentation (D4 symmetries of the in-plane Y/X axes)
+# =============================================================================
+
+def _d4_forward(x: torch.Tensor, flip: bool, k: int) -> torch.Tensor:
+    """Apply one of the 8 dihedral (D4) symmetries of a square image.
+
+    Only the last two dims (Y, X) are touched -- Z is excluded because the
+    data is highly anisotropic, so a Z transform would be out-of-distribution
+    (same reasoning as the flip-only TTA this generalises). ``flip`` optionally
+    mirrors X first, then rotates by ``k`` * 90 degrees; every (flip, k) pair
+    is its own inverse under `_d4_inverse`. Requires Y == X (a 90/270 rotation
+    swaps the two axes' extents).
+    """
+    if flip:
+        x = x.flip(-1)
+    return torch.rot90(x, k, dims=(-2, -1))
+
+
+def _d4_inverse(x: torch.Tensor, flip: bool, k: int) -> torch.Tensor:
+    """Invert `_d4_forward` for the same (flip, k): rotate back, then un-flip."""
+    x = torch.rot90(x, -k, dims=(-2, -1))
+    if flip:
+        x = x.flip(-1)
+    return x
+
+
+# Each entry is an *additional* (flip, k) variant averaged in alongside the
+# untransformed pass. (False, 0) is the identity and is never listed here --
+# the base det_logits computed before TTA already covers it.
+_TTA_VARIANTS: dict[str, list[tuple[bool, int]]] = {
+    "off": [],
+    "flips": [(True, 0), (False, 2), (True, 2)],
+    "d4": [(True, 0), (False, 1), (True, 1), (False, 2), (True, 2), (False, 3), (True, 3)],
+}
+
+
 @torch.no_grad()
 def predict_video(
     model: UNetNodeTransformer,
@@ -372,20 +415,19 @@ def predict_video(
         unet_out, det_logits = model.encode(imgs)
         # unet_out: (1, W, C, *spatial_down), det_logits: list of W × (1, 1, *spatial_down)
 
-        # Detection TTA: original + flip-x + flip-y + flip-xy, average logits.
-        # TTA: flip along Y (-2) and X (-1) only.  Z is excluded because
-        # the data is highly anisotropic (Z resolution ~4x coarser than XY),
-        # so Z-flips would produce out-of-distribution inputs.
-        if cfg.det_tta:
-            tta_flips = [(-1,), (-2,), (-2, -1)]
-            for dims in tta_flips:
-                imgs_flip = imgs.flip(dims)
-                _, det_flip = model.encode(imgs_flip)
+        # Detection TTA: average logits over identity + the configured set of
+        # additional D4 symmetries (see _TTA_VARIANTS / _d4_forward above).
+        tta_variants = _TTA_VARIANTS[cfg.det_tta_mode]
+        if tta_variants:
+            for flip, k in tta_variants:
+                imgs_t = _d4_forward(imgs, flip, k)
+                _, det_t = model.encode(imgs_t)
                 for f in range(W):
-                    det_logits[f] = det_logits[f] + det_flip[f].flip(dims)
-                del imgs_flip, det_flip
+                    det_logits[f] = det_logits[f] + _d4_inverse(det_t[f], flip, k)
+                del imgs_t, det_t
+            n = len(tta_variants) + 1
             for f in range(W):
-                det_logits[f] = det_logits[f] / 4
+                det_logits[f] = det_logits[f] / n
 
         del imgs
 
@@ -620,6 +662,11 @@ def main() -> None:
                              "Default 0.99: the detector is poorly calibrated because the "
                              "ground truth is sparse (only some cells annotated), so a high "
                              "threshold keeps precision up. Sweep it for your model.")
+    parser.add_argument("--det-tta-mode", type=str, default="flips",
+                        choices=["off", "flips", "d4"],
+                        help="Detection TTA: 'off' (none), 'flips' (identity + flip-X/Y/both, "
+                             "default), or 'd4' (full 8-way dihedral symmetry, adds 90/270 "
+                             "rotations -- only valid for a square in-plane Y/X frame).")
     parser.add_argument("--use-ilp", action="store_true",
                         help="Post-process the predicted graph with the tracksdata ILP "
                              "solver (global, flow-consistent linking) instead of greedy "
@@ -645,6 +692,7 @@ def main() -> None:
     )
     cfg = PredictConfig(
         det_threshold=args.det_threshold,
+        det_tta_mode=args.det_tta_mode,
         use_ilp=args.use_ilp,
         ilp_edge_weight=args.ilp_edge_weight,
         ilp_appearance_weight=args.ilp_appearance_weight,

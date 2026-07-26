@@ -6,10 +6,11 @@
 # `kaggle kernels push`. The copied .ipynb is gitignored and regenerated
 # every run, so notebooks/ never has two versions to keep in sync by hand.
 #
-# The kernel depends on the private `tracking-cellmot-src` Kaggle Dataset
-# (src/, scripts/) via kernel-metadata.json's dataset_sources -- publish/
-# refresh it first with `kaggle datasets version -p . -m "..."` (or
-# `create` the first time) if the vendored code changed since the last push.
+# The baseline kernel depends on the private `tracking-cellmot-src` Kaggle
+# Dataset (src/, scripts/) via kernel-metadata.json's dataset_sources --
+# publish/refresh it first with `scripts/publish_code_dataset.sh version "..."`
+# if the vendored code changed since the last push (not a plain `kaggle
+# datasets version -p .` from the repo root -- see that script's header for why).
 #
 # Usage: scripts/push_kaggle_kernel.sh <eda|baseline>
 
